@@ -287,7 +287,7 @@ function NewBOMTable() {
                         {/* 總成本顯示 */}
                         <Table.Footer>
                             <Table.Row>
-                                <Table.HeaderCell colSpan="">總成本</Table.HeaderCell>
+                                <Table.HeaderCell colSpan="4">總成本</Table.HeaderCell>
                                 <Table.HeaderCell>{calculateTotalCost()}</Table.HeaderCell>
                             </Table.Row>
                         </Table.Footer>

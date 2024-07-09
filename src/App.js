@@ -8,6 +8,7 @@ import NewBomTables from "./pages/NewBomTable";
 import NewSharedMaterial from './pages/NewSharedMaterial';
 import HomePage from "./pages/HomePage";
 import SharedMaterial from "./pages/SharedMaterials";
+import EditBomTable from "./pages/EditBomTable"
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/signin" element={<Sighin />} />
             <Route path="/new-bomtable" exact element={<NewBomTables />} />
             <Route path="/new-shared-material" element={<NewSharedMaterial />} />
+            <Route path="/edit-bom-table/:id" element={<EditBomTable />} />
           </Routes>
         </div>
         <Footer />

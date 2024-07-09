@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Grid, Image, Message, Segment } from "semantic-ui-react";
+import { Grid, Image, Message, Segment, Button } from "semantic-ui-react";
 import DataTable from 'react-data-table-component';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -93,6 +93,10 @@ function BomTables() {
     []
   );
 
+  const handleEdit = (bomTableId) => {
+    navigate(`/edit-bom-table/${bomTableId}`);
+  };
+
   const renderContent = () => {
     if (!isAuthenticated) {
       return null;
@@ -109,10 +113,13 @@ function BomTables() {
 
     return sortedBomTables.map(bomTable => (
       <Segment key={bomTable.id} raised>
-        <h2>
-          <Image src={bomTable.imageUrl || 'https://react.semantic-ui.com/images/wireframe/image.png'} size="small" style={{ marginBottom: '1em' }} />
-          {bomTable.tableName}
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1em' }}>
+          <h2>
+            <Image src={bomTable.imageUrl || 'https://react.semantic-ui.com/images/wireframe/image.png'} size="small" style={{ marginRight: '1em' }} />
+            {bomTable.tableName}
+          </h2>
+          <Button primary onClick={() => handleEdit(bomTable.id)}>修改</Button>
+        </div>
         <DataTable
           columns={columns}
           data={bomTable.items || []}
