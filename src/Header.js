@@ -34,31 +34,15 @@ function Header() {
     const viewButtonStyle = {
         backgroundColor: '#f0f8ff',
         color: '#000',
-        padding: '10px',
     };
 
     const editButtonStyle = {
         backgroundColor: '#ffebcd',
         color: '#000',
-        padding: '10px',
     };
 
     return (
         <>
-            <style>
-                {`
-                .view-button {
-                    background-color: #f0f8ff !important;
-                    color: #000 !important;
-                    padding: 10px !important;
-                }
-                .edit-button {
-                    background-color: #ffebcd !important;
-                    color: #000 !important;
-                    padding: 10px !important;
-                }
-                `}
-            </style>
             <Menu>
                 <Menu.Item as={Link} to="/">KindFood ERP System</Menu.Item>
                 <Menu.Item>
@@ -67,16 +51,16 @@ function Header() {
                 <Menu.Menu position='right'>
                     {user ? (
                         <>
-                            <Menu.Item as={Link} to="/new-bomtable" style={editButtonStyle} className="edit-button">
+                            <Menu.Item as={Link} to="/new-bomtable" style={editButtonStyle}>
                                 建立 BOM 表
                             </Menu.Item>
-                            <Menu.Item as={Link} to="/new-shared-material" style={editButtonStyle} className="edit-button">
+                            <Menu.Item as={Link} to="/new-shared-material" style={editButtonStyle}>
                                 建立共用料
                             </Menu.Item>
-                            <Menu.Item as={Link} to="/shared-material" style={viewButtonStyle} className="view-button">
+                            <Menu.Item as={Link} to="/shared-material" style={viewButtonStyle}>
                                 查看共用料
                             </Menu.Item>
-                            <Menu.Item as={Link} to="/bom-table" style={viewButtonStyle} className="view-button">
+                            <Menu.Item as={Link} to="/bom-table" style={viewButtonStyle}>
                                 查看成本列表
                             </Menu.Item>
                             <Menu.Item onClick={handleLogout}>
@@ -85,7 +69,7 @@ function Header() {
                         </>
                     ) : (
                         <>
-                        <Menu.Item as={Link} to="/bom-table" style={viewButtonStyle} className="view-button">
+                        <Menu.Item as={Link} to="/bom-table" style={viewButtonStyle}>
                             查看成本列表
                         </Menu.Item>
                         <Menu.Item as={Link} to="/signin">
