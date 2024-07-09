@@ -48,15 +48,17 @@ function BomTables() {
           const unitCostDoc = await item.unitCost.get();
           return {
             ...item,
-            unitCost: unitCostDoc.data().unitCost, // Assuming the referenced document has a `unitCost` field
+            unitCost: unitCostDoc.data().unitCost,
           };
         }
         return item;
       }));
 
-      // Calculate total cost in frontend
+      // Calculate total cost in frontend, including tax
       const totalCost = items.reduce((sum, item) => {
-        return sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
+        const itemCost = (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
+        const tax = item.isTaxed ? itemCost * 0.05 : 0;
+        return sum + itemCost + tax;
       }, 0);
 
       return { id, ...data, items, totalCost: totalCost.toFixed(2) };
@@ -76,7 +78,7 @@ function BomTables() {
   const sortedBomTables = filteredBomTables.sort((a, b) => {
     const timeA = a.createdAt.seconds * 1000 + a.createdAt.nanoseconds / 1000000;
     const timeB = b.createdAt.seconds * 1000 + b.createdAt.nanoseconds / 1000000;
-    return timeB - timeA; // Changed to sort from newest to oldest
+    return timeB - timeA;
   });
 
   const columns = useMemo(
@@ -102,8 +104,22 @@ function BomTables() {
         sortable: true,
       },
       {
-        name: '小計',
-        selector: row => (parseFloat(row.quantity) * parseFloat(row.unitCost)).toFixed(2),
+        name: '是否含稅',
+        selector: row => row.isTaxed ? '是' : '否',
+        sortable: true,
+      },
+      {
+        name: '稅金',
+        selector: row => row.isTaxed ? (parseFloat(row.quantity) * parseFloat(row.unitCost) * 0.05).toFixed(2) : '0.00',
+        sortable: true,
+      },
+      {
+        name: '小計 (含稅)',
+        selector: row => {
+          const subtotal = parseFloat(row.quantity) * parseFloat(row.unitCost);
+          const tax = row.isTaxed ? subtotal * 0.05 : 0;
+          return (subtotal + tax).toFixed(2);
+        },
         sortable: true,
       },
     ],
@@ -131,10 +147,14 @@ function BomTables() {
     return sortedBomTables.map(bomTable => (
       <Segment key={bomTable.id} raised>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1em' }}>
-          <h2>
+          <div>
             <Image src={bomTable.imageUrl || 'https://react.semantic-ui.com/images/wireframe/image.png'} size="small" style={{ marginBottom: '1em' }} />
-            {bomTable.tableName}
-          </h2>
+            <h2>{bomTable.tableName}</h2>
+            <p style={{ fontSize: '1.3em', color: 'black' }}>
+            &nbsp;&nbsp;&nbsp;料號: {bomTable.productCode || '未指定'}<br />
+            &nbsp;&nbsp;&nbsp;產品條碼: {bomTable.barcode || '未指定'}
+            </p>
+          </div>
           <Button primary onClick={() => handleEdit(bomTable.id)}>修改</Button>
         </div>
         <DataTable
@@ -147,7 +167,7 @@ function BomTables() {
           striped
           responsive
         />
-        <p style={{ marginTop: '1em', fontWeight: 'bold' }}>總成本: {bomTable.totalCost}</p>
+        <p style={{ marginTop: '1em', fontWeight: 'bold' }}>總成本 (含稅): {bomTable.totalCost}</p>
         <p style={{ marginTop: '1em', fontWeight: 'bold' }}>表格建立日期 / 時間: <span style={{ color: 'gray' }}>{new Date(bomTable.createdAt.seconds * 1000 + bomTable.createdAt.nanoseconds / 1000000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</span></p>
         {bomTable.updatedAt && (
           <p style={{ marginTop: '0.5em', fontWeight: 'bold' }}>上次更新時間: <span style={{ color: 'gray' }}>{new Date(bomTable.updatedAt.seconds * 1000 + bomTable.updatedAt.nanoseconds / 1000000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</span></p>

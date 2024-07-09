@@ -11,6 +11,8 @@ function EditBomTable() {
 
   const [bomTable, setBomTable] = useState(null);
   const [tableName, setTableName] = useState('');
+  const [productCode, setProductCode] = useState('');
+  const [barcode, setBarcode] = useState('');
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [file, setFile] = useState(null);
@@ -29,6 +31,8 @@ function EditBomTable() {
           const data = doc.data();
           setBomTable(data);
           setTableName(data.tableName);
+          setProductCode(data.productCode || '');
+          setBarcode(data.barcode || '');
           setImageUrl(data.imageUrl || '');
           setSelectedCategory(data.category || "");
           setUpdateTime(data.updatedAt ? data.updatedAt.toDate() : null);
@@ -100,7 +104,7 @@ function EditBomTable() {
   };
 
   const addItem = () => {
-    setItems([...items, { name: "", quantity: "", unitCost: "", isShared: false, materialRef: null }]);
+    setItems([...items, { name: "", quantity: "", unitCost: "", isShared: false, materialRef: null, isTaxed: false }]);
   };
 
   const deleteItem = (index) => {
@@ -111,7 +115,9 @@ function EditBomTable() {
     return items.reduce((sum, item) => {
       const quantity = parseFloat(item.quantity) || 0;
       const unitCost = parseFloat(item.unitCost) || 0;
-      return sum + (quantity * unitCost);
+      const itemCost = quantity * unitCost;
+      const tax = item.isTaxed ? itemCost * 0.05 : 0;
+      return sum + itemCost + tax;
     }, 0);
   }, [items]);
 
@@ -137,13 +143,16 @@ function EditBomTable() {
         isShared: item.isShared,
         unitCost: item.isShared
           ? firebase.firestore().doc(`shared_materials/${item.materialRef}`)
-          : parseFloat(item.unitCost) || 0
+          : parseFloat(item.unitCost) || 0,
+        isTaxed: item.isTaxed
       }));
 
       const currentTimestamp = firebase.firestore.FieldValue.serverTimestamp();
 
       const updateData = {
         tableName,
+        productCode,
+        barcode,
         items: processedItems,
         category: selectedCategory,
         imageUrl: updatedImageUrl,
@@ -157,7 +166,7 @@ function EditBomTable() {
 
       await firebase.firestore().collection('bom_tables').doc(id).set(updateData, { merge: true });
 
-      setUpdateTime(new Date()); // Update the local state with the current time
+      setUpdateTime(new Date());
 
       toast.success('BOM 表修改成功');
       
@@ -202,6 +211,20 @@ function EditBomTable() {
           onChange={(e) => setTableName(e.target.value)}
         />
 
+        <Form.Input
+          fluid
+          label="產品料號"
+          value={productCode}
+          onChange={(e) => setProductCode(e.target.value)}
+        />
+
+        <Form.Input
+          fluid
+          label="條碼編號"
+          value={barcode}
+          onChange={(e) => setBarcode(e.target.value)}
+        />
+
         <Form.Field>
           <label>選擇類別</label>
           <Dropdown
@@ -228,6 +251,9 @@ function EditBomTable() {
               <Table.HeaderCell>項目名稱</Table.HeaderCell>
               <Table.HeaderCell>數量</Table.HeaderCell>
               <Table.HeaderCell>單位成本</Table.HeaderCell>
+              <Table.HeaderCell>是否含稅</Table.HeaderCell>
+              <Table.HeaderCell>稅金</Table.HeaderCell>
+              <Table.HeaderCell>小計 (含稅)</Table.HeaderCell>
               <Table.HeaderCell>操作</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
@@ -276,6 +302,18 @@ function EditBomTable() {
                   />
                 </Table.Cell>
                 <Table.Cell>
+                  <Form.Checkbox
+                    checked={item.isTaxed}
+                    onChange={(_, { checked }) => handleItemChange(index, 'isTaxed', checked)}
+                  />
+                </Table.Cell>
+                <Table.Cell>
+                  {item.isTaxed ? (parseFloat(item.quantity || 0) * parseFloat(item.unitCost || 0) * 0.05).toFixed(2) : "0.00"}
+                </Table.Cell>
+                <Table.Cell>
+                  {((parseFloat(item.quantity || 0) * parseFloat(item.unitCost || 0)) * (item.isTaxed ? 1.05 : 1)).toFixed(2)}
+                </Table.Cell>
+                <Table.Cell>
                   <Button 
                     icon 
                     color="red" 
@@ -290,10 +328,10 @@ function EditBomTable() {
           </Table.Body>
           <Table.Footer>
             <Table.Row>
-              <Table.HeaderCell colSpan="4" textAlign="left">
-                總成本
+              <Table.HeaderCell colSpan="6" textAlign="right">
+                總成本 (含稅)
               </Table.HeaderCell>
-              <Table.HeaderCell>
+              <Table.HeaderCell colSpan="2">
                 {totalCost.toFixed(2)}
               </Table.HeaderCell>
             </Table.Row>
