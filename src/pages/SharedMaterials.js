@@ -64,10 +64,15 @@ function SharedMaterials() {
     const fetchSharedMaterials = async () => {
         try {
             const snapshot = await firebase.firestore().collection('shared_materials').get();
-            const materialsData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            const materialsData = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    createdAt: data.createdAt,
+                    lastUpdated: data.lastUpdated || null
+                };
+            });
             setMaterials(materialsData);
             setIsLoading(false);
         } catch (error) {
@@ -117,11 +122,17 @@ function SharedMaterials() {
             sortable: true,
         },
         {
+            name: '最近更新時間',
+            selector: row => row.lastUpdated ? row.lastUpdated.toDate().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }) : '尚未更新',
+            sortable: true,
+        },
+        {
             name: '操作',
             cell: row => (
                 <>
                     <Button primary onClick={() => handleEdit(row.id)}>修改</Button>
-                    <Button negative icon="trash" onClick={() => handleDelete(row)} />
+                    <Button secondary onClick={() => navigate(`/shared-material-history/${row.id}`)}>歷史記錄</Button>
+                    {/* <Button negative icon="trash" onClick={() => handleDelete(row)} /> */}
                 </>
             ),
         },

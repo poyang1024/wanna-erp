@@ -9,6 +9,8 @@ import NewSharedMaterial from './pages/NewSharedMaterial';
 import HomePage from "./pages/HomePage";
 import SharedMaterial from "./pages/SharedMaterials";
 import EditBomTable from "./pages/EditBomTable"
+import EditSharedMaterial from "./pages/EditSharedMaterials"
+import SharedMaterialHistory from "./pages/SharedMaterialHistory"
 
 function App() {
   return (
@@ -24,6 +26,8 @@ function App() {
             <Route path="/new-bomtable" exact element={<NewBomTables />} />
             <Route path="/new-shared-material" element={<NewSharedMaterial />} />
             <Route path="/edit-bom-table/:id" element={<EditBomTable />} />
+            <Route path="/edit-shared-material/:id" element={<EditSharedMaterial />} />
+            <Route path="/shared-material-history/:id" element={<SharedMaterialHistory />} />
           </Routes>
         </div>
         <Footer />

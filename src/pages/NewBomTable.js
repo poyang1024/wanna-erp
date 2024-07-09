@@ -15,7 +15,16 @@ function NewBOMTable() {
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [tableName, setTableName] = useState("");
-    const [items, setItems] = useState([{ name: "", quantity: "", unitCost: "", isShared: false, materialRef: null }]);
+    const [productCode, setProductCode] = useState("");
+    const [barcode, setBarcode] = useState("");
+    const [items, setItems] = useState([{ 
+        name: "", 
+        quantity: "", 
+        unitCost: "", 
+        isShared: false, 
+        materialRef: null,
+        isTaxed: false
+    }]);
     const [isLoading, setIsLoading] = useState(false);
     const [file, setFile] = useState(null);
     const [categories, setCategories] = useState([]);
@@ -47,7 +56,6 @@ function NewBOMTable() {
     useEffect(() => {
         async function fetchData() {
             try {
-                // 獲取類別
                 const categoriesSnapshot = await firebase.firestore().collection('categorys').get();
                 const categoriesData = categoriesSnapshot.docs.map((doc) => ({
                     key: doc.id,
@@ -56,7 +64,6 @@ function NewBOMTable() {
                 }));
                 setCategories(categoriesData);
 
-                // 獲取共用料
                 const sharedMaterialsSnapshot = await firebase.firestore().collection('shared_materials').get();
                 const sharedMaterialsData = sharedMaterialsSnapshot.docs.map((doc) => ({
                     key: doc.id,
@@ -78,7 +85,14 @@ function NewBOMTable() {
 
     // 新增項目到 BOM 表格
     const addItem = () => {
-        setItems([...items, { name: "", quantity: "", unitCost: "", isShared: false, materialRef: null }]);
+        setItems([...items, { 
+            name: "", 
+            quantity: "", 
+            unitCost: "", 
+            isShared: false, 
+            materialRef: null,
+            isTaxed: false
+        }]);
     };
 
     // 更新特定項目的欄位
@@ -109,7 +123,9 @@ function NewBOMTable() {
     const calculateTotalCost = () => {
         return items.reduce((total, item) => {
             const unitCost = item.isShared ? parseFloat(item.unitCost) : parseFloat(item.unitCost) || 0;
-            return total + (parseFloat(item.quantity) || 0) * unitCost;
+            const subtotal = (parseFloat(item.quantity) || 0) * unitCost;
+            const tax = item.isTaxed ? subtotal * 0.05 : 0;
+            return total + subtotal + tax;
         }, 0).toFixed(2);
     };
 
@@ -149,11 +165,14 @@ function NewBOMTable() {
                 isShared: item.isShared,
                 unitCost: item.isShared
                     ? firebase.firestore().doc(`shared_materials/${item.materialRef}`)
-                    : parseFloat(item.unitCost) || 0
+                    : parseFloat(item.unitCost) || 0,
+                isTaxed: item.isTaxed
             }));
 
             await documentRef.set({
                 tableName,
+                productCode,
+                barcode,
                 items: processedItems,
                 category: selectedCategory,
                 createdAt: firebase.firestore.Timestamp.now(),
@@ -184,7 +203,6 @@ function NewBOMTable() {
             <Header>新增 BOM 表格</Header>
             {user ? (
                 <Form onSubmit={onSubmit}>
-                    {/* 圖片上傳區域 */}
                     <Image src={preview} size="small" floated="left" />
                     <Button basic as="label" htmlFor="bom-image">
                         上傳圖片
@@ -196,7 +214,6 @@ function NewBOMTable() {
                         onChange={(e) => setFile(e.target.files[0])}
                     />
 
-                    {/* BOM 表格名稱輸入 */}
                     <Form.Input 
                         label="BOM 表格名稱" 
                         placeholder="輸入 BOM 表格名稱" 
@@ -204,7 +221,20 @@ function NewBOMTable() {
                         onChange={(e) => setTableName(e.target.value)} 
                     />
 
-                    {/* 類別選擇下拉選單 */}
+                    <Form.Input 
+                        label="料號" 
+                        placeholder="輸入料號" 
+                        value={productCode} 
+                        onChange={(e) => setProductCode(e.target.value)} 
+                    />
+
+                    <Form.Input 
+                        label="產品條碼" 
+                        placeholder="輸入產品條碼" 
+                        value={barcode} 
+                        onChange={(e) => setBarcode(e.target.value)} 
+                    />
+
                     <Form.Field>
                         <label>選擇類別</label>
                         <Dropdown
@@ -217,7 +247,6 @@ function NewBOMTable() {
                         />
                     </Form.Field>
 
-                    {/* BOM 表格項目列表 */}
                     <Table celled>
                         <Table.Header>
                             <Table.Row>
@@ -225,23 +254,23 @@ function NewBOMTable() {
                                 <Table.HeaderCell>項目名稱</Table.HeaderCell>
                                 <Table.HeaderCell>數量</Table.HeaderCell>
                                 <Table.HeaderCell>單位成本</Table.HeaderCell>
+                                <Table.HeaderCell>是否含稅</Table.HeaderCell>
+                                <Table.HeaderCell>稅金</Table.HeaderCell>
+                                <Table.HeaderCell>小計</Table.HeaderCell>
                                 <Table.HeaderCell>操作</Table.HeaderCell>
                             </Table.Row>
                         </Table.Header>
                         <Table.Body>
                             {items.map((item, index) => (
                                 <Table.Row key={index}>
-                                    {/* 共用料複選框 */}
                                     <Table.Cell>
                                         <Form.Checkbox
                                             checked={item.isShared}
                                             onChange={(_, { checked }) => updateItem(index, 'isShared', checked)}
                                         />
                                     </Table.Cell>
-                                    {/* 項目名稱輸入（條件渲染） */}
                                     <Table.Cell>
                                         {item.isShared ? (
-                                            // 如果是共用料，顯示下拉選單
                                             <Dropdown
                                                 placeholder='選擇共用料'
                                                 fluid
@@ -251,7 +280,6 @@ function NewBOMTable() {
                                                 onChange={(_, { value }) => updateItem(index, 'name', value)}
                                             />
                                         ) : (
-                                            // 如果不是共用料，顯示文字輸入
                                             <Form.Input 
                                                 fluid 
                                                 placeholder="項目名稱" 
@@ -260,7 +288,6 @@ function NewBOMTable() {
                                             />
                                         )}
                                     </Table.Cell>
-                                    {/* 數量輸入 */}
                                     <Table.Cell>
                                         <Form.Input 
                                             fluid 
@@ -270,7 +297,6 @@ function NewBOMTable() {
                                             onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                                         />
                                     </Table.Cell>
-                                    {/* 單位成本輸入 */}
                                     <Table.Cell>
                                         <Form.Input 
                                             fluid 
@@ -281,7 +307,18 @@ function NewBOMTable() {
                                             readOnly={item.isShared}
                                         />
                                     </Table.Cell>
-                                    {/* 刪除項目按鈕 */}
+                                    <Table.Cell>
+                                        <Form.Checkbox
+                                            checked={item.isTaxed}
+                                            onChange={(_, { checked }) => updateItem(index, 'isTaxed', checked)}
+                                        />
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        {item.isTaxed ? ((parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0) * 0.05).toFixed(2) : "0.00"}
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        {((parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0) + (item.isTaxed ? (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0) * 0.05 : 0)).toFixed(2)}
+                                    </Table.Cell>
                                     <Table.Cell>
                                         <Button 
                                             icon 
@@ -295,15 +332,13 @@ function NewBOMTable() {
                                 </Table.Row>
                             ))}
                         </Table.Body>
-                        {/* 總成本顯示 */}
                         <Table.Footer>
                             <Table.Row>
-                                <Table.HeaderCell colSpan="4">總成本</Table.HeaderCell>
-                                <Table.HeaderCell>{calculateTotalCost()}</Table.HeaderCell>
+                                <Table.HeaderCell colSpan="6">總成本</Table.HeaderCell>
+                                <Table.HeaderCell colSpan="2">{calculateTotalCost()}</Table.HeaderCell>
                             </Table.Row>
                         </Table.Footer>
                     </Table>
-                    {/* 新增項目按鈕 */}
                     <Button 
                         type="button" 
                         onClick={addItem} 
@@ -311,7 +346,6 @@ function NewBOMTable() {
                     >
                         新增項目
                     </Button>
-                    {/* 提交 BOM 表格按鈕 */}
                     <Form.Button 
                         loading={isLoading} 
                         primary 
