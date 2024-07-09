@@ -42,18 +42,19 @@ function EditBomTable() {
           const sharedMaterialsData = sharedMaterialsSnapshot.docs.map((doc) => ({
             key: doc.id,
             text: doc.data().name,
-            value: doc.data().name,
+            value: doc.id,
             unitCost: doc.data().unitCost
           }));
           setSharedMaterials(sharedMaterialsData);
 
           // Process items
           const processedItems = await Promise.all(data.items.map(async (item) => {
-            if (item.isShared && item.unitCost instanceof firebase.firestore.DocumentReference) {
+            if (item.isShared) {
               const sharedMaterialDoc = await item.unitCost.get();
               const sharedMaterialData = sharedMaterialDoc.data();
               return {
                 ...item,
+                name: sharedMaterialDoc.id,
                 unitCost: sharedMaterialData.unitCost,
                 materialRef: sharedMaterialDoc.id
               };
@@ -138,7 +139,7 @@ function EditBomTable() {
 
       // 處理項目，區分共用料和非共用料
       const processedItems = items.filter(item => item.name && item.quantity).map(item => ({
-        name: item.name,
+        name: item.isShared ? firebase.firestore().doc(`shared_materials/${item.materialRef}`) : item.name,
         quantity: parseFloat(item.quantity) || 0,
         isShared: item.isShared,
         unitCost: item.isShared
@@ -273,7 +274,7 @@ function EditBomTable() {
                       fluid
                       selection
                       options={sharedMaterials}
-                      value={item.name}
+                      value={item.materialRef}
                       onChange={(_, { value }) => handleItemChange(index, 'name', value)}
                     />
                   ) : (

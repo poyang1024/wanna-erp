@@ -42,14 +42,17 @@ function BomTables() {
       const id = docSnapshot.id;
       const data = docSnapshot.data();
 
-      // Fetch referenced unitCost for shared materials
+      // Fetch referenced unitCost and name for shared materials
       const items = await Promise.all(data.items.map(async item => {
-        if (item.isShared && item.unitCost instanceof firebase.firestore.DocumentReference) {
-          const unitCostDoc = await item.unitCost.get();
-          return {
-            ...item,
-            unitCost: unitCostDoc.data().unitCost,
-          };
+        if (item.isShared) {
+          if (item.unitCost instanceof firebase.firestore.DocumentReference) {
+            const unitCostDoc = await item.unitCost.get();
+            item.unitCost = unitCostDoc.data().unitCost;
+          }
+          if (item.name instanceof firebase.firestore.DocumentReference) {
+            const nameDoc = await item.name.get();
+            item.name = nameDoc.data().name;
+          }
         }
         return item;
       }));

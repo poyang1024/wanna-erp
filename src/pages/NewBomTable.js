@@ -68,7 +68,7 @@ function NewBOMTable() {
                 const sharedMaterialsData = sharedMaterialsSnapshot.docs.map((doc) => ({
                     key: doc.id,
                     text: doc.data().name,
-                    value: doc.data().name,
+                    value: doc.id,
                     unitCost: doc.data().unitCost
                 }));
                 setSharedMaterials(sharedMaterialsData);
@@ -103,11 +103,12 @@ function NewBOMTable() {
             newItems[index].name = "";
             newItems[index].unitCost = "";
             newItems[index].materialRef = null;
-        } else if (field === 'name' && newItems[index].isShared) {
+        } else if (field === 'materialRef' && newItems[index].isShared) {
             const selectedMaterial = sharedMaterials.find(m => m.value === value);
             if (selectedMaterial) {
+                newItems[index].name = selectedMaterial.text;
                 newItems[index].unitCost = selectedMaterial.unitCost;
-                newItems[index].materialRef = selectedMaterial.key;
+                newItems[index].materialRef = selectedMaterial.value;
             }
         }
         setItems(newItems);
@@ -122,7 +123,7 @@ function NewBOMTable() {
     // 計算 BOM 表格的總成本
     const calculateTotalCost = () => {
         return items.reduce((total, item) => {
-            const unitCost = item.isShared ? parseFloat(item.unitCost) : parseFloat(item.unitCost) || 0;
+            const unitCost = parseFloat(item.unitCost) || 0;
             const subtotal = (parseFloat(item.quantity) || 0) * unitCost;
             const tax = item.isTaxed ? subtotal * 0.05 : 0;
             return total + subtotal + tax;
@@ -160,7 +161,9 @@ function NewBOMTable() {
 
             // 處理項目，區分共用料和非共用料
             const processedItems = items.map(item => ({
-                name: item.name,
+                name: item.isShared 
+                    ? firebase.firestore().doc(`shared_materials/${item.materialRef}`)
+                    : item.name,
                 quantity: parseFloat(item.quantity) || 0,
                 isShared: item.isShared,
                 unitCost: item.isShared
@@ -276,8 +279,8 @@ function NewBOMTable() {
                                                 fluid
                                                 selection
                                                 options={sharedMaterials}
-                                                value={item.name}
-                                                onChange={(_, { value }) => updateItem(index, 'name', value)}
+                                                value={item.materialRef}
+                                                onChange={(_, { value }) => updateItem(index, 'materialRef', value)}
                                             />
                                         ) : (
                                             <Form.Input 
