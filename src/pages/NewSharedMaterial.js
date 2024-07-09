@@ -66,7 +66,7 @@ function NewSharedMaterial() {
                 unitCost: parseFloat(material.unitCost),
                 createdAt: firebase.firestore.Timestamp.now(),
                 createdBy: {
-                    displayName: firebase.auth().currentUser.displayName || "管理員",
+                    displayName: firebase.auth().currentUser.email || "匿名",
                     uid: firebase.auth().currentUser.uid,
                     email: firebase.auth().currentUser.email
                 }
@@ -74,7 +74,7 @@ function NewSharedMaterial() {
 
             setIsLoading(false);
             toast.success('共用料新增成功！');
-            navigate('/'); // 提交成功後導航到首頁
+            navigate('/shared-material'); // 提交成功後導航到首頁
         } catch (error) {
             console.error("Error adding shared material: ", error);
             toast.error('新增共用料時發生錯誤');

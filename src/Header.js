@@ -41,6 +41,22 @@ function Header() {
         color: '#000',
     };
 
+    const viewButtonHoverStyle = {
+        backgroundColor: '#d0e8ff',
+    };
+
+    const editButtonHoverStyle = {
+        backgroundColor: '#ffd7b0',
+    };
+
+    const handleMouseEnter = (e, hoverStyle) => {
+        Object.assign(e.target.style, hoverStyle);
+    };
+
+    const handleMouseLeave = (e, originalStyle) => {
+        Object.assign(e.target.style, originalStyle);
+    };
+
     return (
         <>
             <Menu>
@@ -51,16 +67,40 @@ function Header() {
                 <Menu.Menu position='right'>
                     {user ? (
                         <>
-                            <Menu.Item as={Link} to="/new-bomtable" style={editButtonStyle}>
+                            <Menu.Item 
+                                as={Link} 
+                                to="/new-bomtable" 
+                                style={editButtonStyle} 
+                                onMouseEnter={(e) => handleMouseEnter(e, editButtonHoverStyle)}
+                                onMouseLeave={(e) => handleMouseLeave(e, editButtonStyle)}
+                            >
                                 建立 BOM 表
                             </Menu.Item>
-                            <Menu.Item as={Link} to="/new-shared-material" style={editButtonStyle}>
+                            <Menu.Item 
+                                as={Link} 
+                                to="/new-shared-material" 
+                                style={editButtonStyle} 
+                                onMouseEnter={(e) => handleMouseEnter(e, editButtonHoverStyle)}
+                                onMouseLeave={(e) => handleMouseLeave(e, editButtonStyle)}
+                            >
                                 建立共用料
                             </Menu.Item>
-                            <Menu.Item as={Link} to="/shared-material" style={viewButtonStyle}>
+                            <Menu.Item 
+                                as={Link} 
+                                to="/shared-material" 
+                                style={viewButtonStyle} 
+                                onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
+                                onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
+                            >
                                 查看共用料
                             </Menu.Item>
-                            <Menu.Item as={Link} to="/bom-table" style={viewButtonStyle}>
+                            <Menu.Item 
+                                as={Link} 
+                                to="/bom-table" 
+                                style={viewButtonStyle} 
+                                onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
+                                onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
+                            >
                                 查看成本列表
                             </Menu.Item>
                             <Menu.Item onClick={handleLogout}>
@@ -69,7 +109,13 @@ function Header() {
                         </>
                     ) : (
                         <>
-                        <Menu.Item as={Link} to="/bom-table" style={viewButtonStyle}>
+                        <Menu.Item 
+                            as={Link} 
+                            to="/bom-table" 
+                            style={viewButtonStyle} 
+                            onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
+                            onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
+                        >
                             查看成本列表
                         </Menu.Item>
                         <Menu.Item as={Link} to="/signin">

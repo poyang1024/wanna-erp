@@ -15,7 +15,7 @@ function NewBOMTable() {
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [tableName, setTableName] = useState("");
-    const [items, setItems] = useState([{ name: "", quantity: "", unitCost: "", isShared: false }]);
+    const [items, setItems] = useState([{ name: "", quantity: "", unitCost: "", isShared: false, materialRef: null }]);
     const [isLoading, setIsLoading] = useState(false);
     const [file, setFile] = useState(null);
     const [categories, setCategories] = useState([]);
@@ -78,7 +78,7 @@ function NewBOMTable() {
 
     // 新增項目到 BOM 表格
     const addItem = () => {
-        setItems([...items, { name: "", quantity: "", unitCost: "", isShared: false }]);
+        setItems([...items, { name: "", quantity: "", unitCost: "", isShared: false, materialRef: null }]);
     };
 
     // 更新特定項目的欄位
@@ -86,13 +86,14 @@ function NewBOMTable() {
         const newItems = [...items];
         newItems[index][field] = value;
         if (field === 'isShared') {
-            newItems[index].name = "";  // 清空項目名稱
-            newItems[index].unitCost = "";  // 清空單位成本
+            newItems[index].name = "";
+            newItems[index].unitCost = "";
+            newItems[index].materialRef = null;
         } else if (field === 'name' && newItems[index].isShared) {
-            // 如果是共用料，更新單位成本
             const selectedMaterial = sharedMaterials.find(m => m.value === value);
             if (selectedMaterial) {
                 newItems[index].unitCost = selectedMaterial.unitCost;
+                newItems[index].materialRef = selectedMaterial.key;
             }
         }
         setItems(newItems);
@@ -107,7 +108,8 @@ function NewBOMTable() {
     // 計算 BOM 表格的總成本
     const calculateTotalCost = () => {
         return items.reduce((total, item) => {
-            return total + (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
+            const unitCost = item.isShared ? parseFloat(item.unitCost) : parseFloat(item.unitCost) || 0;
+            return total + (parseFloat(item.quantity) || 0) * unitCost;
         }, 0).toFixed(2);
     };
 
@@ -140,10 +142,19 @@ function NewBOMTable() {
                 imageUrl = await snapshot.ref.getDownloadURL();
             }
 
+            // 處理項目，區分共用料和非共用料
+            const processedItems = items.map(item => ({
+                name: item.name,
+                quantity: parseFloat(item.quantity) || 0,
+                isShared: item.isShared,
+                unitCost: item.isShared
+                    ? firebase.firestore().doc(`shared_materials/${item.materialRef}`)
+                    : parseFloat(item.unitCost) || 0
+            }));
+
             await documentRef.set({
                 tableName,
-                items,
-                totalCost: calculateTotalCost(),
+                items: processedItems,
                 category: selectedCategory,
                 createdAt: firebase.firestore.Timestamp.now(),
                 createdBy: {
@@ -155,7 +166,7 @@ function NewBOMTable() {
             });
             setIsLoading(false);
             toast.success('BOM 表格創建成功！');
-            navigate('/bom-table'); // 成功提交後導到 bom table 頁面
+            navigate('/bom-table');
         } catch (error) {
             console.error("新增 BOM 表格時出錯：", error);
             toast.error('新增 BOM 表格時發生錯誤');

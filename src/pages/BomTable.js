@@ -35,21 +35,38 @@ function BomTables() {
     return () => unsubscribe();
   }, [navigate]);
 
-  const fetchData = () => {
+  const fetchData = async () => {
     // Fetch BOM tables
-    firebase.firestore().collection("bom_tables").get().then((collectionSnapshot) => {
-      const data = collectionSnapshot.docs.map(docSnapshot => {
-        const id = docSnapshot.id;
-        return { id, ...docSnapshot.data() };
-      });
-      setBomTables(data);
-    });
+    const bomTablesSnapshot = await firebase.firestore().collection("bom_tables").get();
+    const bomTablesData = await Promise.all(bomTablesSnapshot.docs.map(async docSnapshot => {
+      const id = docSnapshot.id;
+      const data = docSnapshot.data();
+
+      // Fetch referenced unitCost for shared materials
+      const items = await Promise.all(data.items.map(async item => {
+        if (item.isShared && item.unitCost instanceof firebase.firestore.DocumentReference) {
+          const unitCostDoc = await item.unitCost.get();
+          return {
+            ...item,
+            unitCost: unitCostDoc.data().unitCost, // Assuming the referenced document has a `unitCost` field
+          };
+        }
+        return item;
+      }));
+
+      // Calculate total cost in frontend
+      const totalCost = items.reduce((sum, item) => {
+        return sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
+      }, 0);
+
+      return { id, ...data, items, totalCost: totalCost.toFixed(2) };
+    }));
+    setBomTables(bomTablesData);
 
     // Fetch categories
-    firebase.firestore().collection("categorys").get().then((collectionSnapshot) => {
-      const data = collectionSnapshot.docs.map(doc => doc.data());
-      setCategories(data);
-    });
+    const categoriesSnapshot = await firebase.firestore().collection("categorys").get();
+    const categoriesData = categoriesSnapshot.docs.map(doc => doc.data());
+    setCategories(categoriesData);
   };
 
   const filteredBomTables = selectedCategory
@@ -59,7 +76,7 @@ function BomTables() {
   const sortedBomTables = filteredBomTables.sort((a, b) => {
     const timeA = a.createdAt.seconds * 1000 + a.createdAt.nanoseconds / 1000000;
     const timeB = b.createdAt.seconds * 1000 + b.createdAt.nanoseconds / 1000000;
-    return timeA - timeB;
+    return timeB - timeA; // Changed to sort from newest to oldest
   });
 
   const columns = useMemo(
@@ -81,7 +98,7 @@ function BomTables() {
       },
       {
         name: '單位成本',
-        selector: row => row.unitCost,
+        selector: row => parseFloat(row.unitCost).toFixed(2),
         sortable: true,
       },
       {
@@ -115,7 +132,7 @@ function BomTables() {
       <Segment key={bomTable.id} raised>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1em' }}>
           <h2>
-            <Image src={bomTable.imageUrl || 'https://react.semantic-ui.com/images/wireframe/image.png'} size="small" style={{ marginRight: '1em' }} />
+            <Image src={bomTable.imageUrl || 'https://react.semantic-ui.com/images/wireframe/image.png'} size="small" style={{ marginBottom: '1em' }} />
             {bomTable.tableName}
           </h2>
           <Button primary onClick={() => handleEdit(bomTable.id)}>修改</Button>
@@ -130,8 +147,11 @@ function BomTables() {
           striped
           responsive
         />
-        <p style={{ marginTop: '1em', fontWeight: 'bold' }}>總成本:  {bomTable.totalCost}</p>
-        <p style={{ marginTop: '1em', fontWeight: 'bold' }}>表格建立日期 / 時間:  <span style={{ color: 'gray' }}>{new Date(bomTable.createdAt.seconds * 1000 + bomTable.createdAt.nanoseconds / 1000000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</span></p>
+        <p style={{ marginTop: '1em', fontWeight: 'bold' }}>總成本: {bomTable.totalCost}</p>
+        <p style={{ marginTop: '1em', fontWeight: 'bold' }}>表格建立日期 / 時間: <span style={{ color: 'gray' }}>{new Date(bomTable.createdAt.seconds * 1000 + bomTable.createdAt.nanoseconds / 1000000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</span></p>
+        {bomTable.updatedAt && (
+          <p style={{ marginTop: '0.5em', fontWeight: 'bold' }}>上次更新時間: <span style={{ color: 'gray' }}>{new Date(bomTable.updatedAt.seconds * 1000 + bomTable.updatedAt.nanoseconds / 1000000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</span></p>
+        )}
       </Segment>
     ));
   };

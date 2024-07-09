@@ -18,6 +18,7 @@ function EditBomTable() {
   const [sharedMaterials, setSharedMaterials] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [updateTime, setUpdateTime] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -28,23 +29,38 @@ function EditBomTable() {
           const data = doc.data();
           setBomTable(data);
           setTableName(data.tableName);
-          setItems(data.items || []);
           setImageUrl(data.imageUrl || '');
           setSelectedCategory(data.category || "");
+          setUpdateTime(data.updatedAt ? data.updatedAt.toDate() : null);
+
+          // Fetch shared materials
+          const sharedMaterialsSnapshot = await firebase.firestore().collection('shared_materials').get();
+          const sharedMaterialsData = sharedMaterialsSnapshot.docs.map((doc) => ({
+            key: doc.id,
+            text: doc.data().name,
+            value: doc.data().name,
+            unitCost: doc.data().unitCost
+          }));
+          setSharedMaterials(sharedMaterialsData);
+
+          // Process items
+          const processedItems = await Promise.all(data.items.map(async (item) => {
+            if (item.isShared && item.unitCost instanceof firebase.firestore.DocumentReference) {
+              const sharedMaterialDoc = await item.unitCost.get();
+              const sharedMaterialData = sharedMaterialDoc.data();
+              return {
+                ...item,
+                unitCost: sharedMaterialData.unitCost,
+                materialRef: sharedMaterialDoc.id
+              };
+            }
+            return item;
+          }));
+          setItems(processedItems);
         } else {
           toast.error('找不到指定的 BOM 表');
           navigate('/');
         }
-
-        // Fetch shared materials
-        const sharedMaterialsSnapshot = await firebase.firestore().collection('shared_materials').get();
-        const sharedMaterialsData = sharedMaterialsSnapshot.docs.map((doc) => ({
-          key: doc.id,
-          text: doc.data().name,
-          value: doc.data().name,
-          unitCost: doc.data().unitCost
-        }));
-        setSharedMaterials(sharedMaterialsData);
 
         // Fetch categories
         const categoriesSnapshot = await firebase.firestore().collection('categorys').get();
@@ -72,22 +88,23 @@ function EditBomTable() {
     if (field === 'isShared') {
       newItems[index].name = "";
       newItems[index].unitCost = "";
+      newItems[index].materialRef = null;
     } else if (field === 'name' && newItems[index].isShared) {
       const selectedMaterial = sharedMaterials.find(m => m.value === value);
       if (selectedMaterial) {
         newItems[index].unitCost = selectedMaterial.unitCost;
+        newItems[index].materialRef = selectedMaterial.key;
       }
     }
     setItems(newItems);
   };
 
   const addItem = () => {
-    setItems([...items, { name: "", quantity: "", unitCost: "", isShared: false }]);
+    setItems([...items, { name: "", quantity: "", unitCost: "", isShared: false, materialRef: null }]);
   };
 
   const deleteItem = (index) => {
-    const newItems = items.filter((_, i) => i !== index);
-    setItems(newItems);
+    setItems(prevItems => prevItems.filter((_, i) => i !== index));
   };
 
   const totalCost = useMemo(() => {
@@ -113,25 +130,45 @@ function EditBomTable() {
 
       const currentUser = firebase.auth().currentUser;
 
-      await firebase.firestore().collection('bom_tables').doc(id).update({
+      // 處理項目，區分共用料和非共用料
+      const processedItems = items.filter(item => item.name && item.quantity).map(item => ({
+        name: item.name,
+        quantity: parseFloat(item.quantity) || 0,
+        isShared: item.isShared,
+        unitCost: item.isShared
+          ? firebase.firestore().doc(`shared_materials/${item.materialRef}`)
+          : parseFloat(item.unitCost) || 0
+      }));
+
+      const currentTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+
+      const updateData = {
         tableName,
-        items,
-        totalCost,
+        items: processedItems,
         category: selectedCategory,
         imageUrl: updatedImageUrl,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: currentTimestamp,
         updatedBy: {
           uid: currentUser.uid,
-          displayName: currentUser.displayName || "未知用戶",
+          displayName: currentUser.displayName,
           email: currentUser.email
         }
-      });
+      };
+
+      await firebase.firestore().collection('bom_tables').doc(id).set(updateData, { merge: true });
+
+      setUpdateTime(new Date()); // Update the local state with the current time
 
       toast.success('BOM 表修改成功');
-      navigate('/bom-table');
+      
+      setTimeout(() => {
+        navigate('/bom-table');
+      }, 1000);
+
     } catch (error) {
       console.error("Error updating BOM table: ", error);
       toast.error('修改 BOM 表時發生錯誤');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -176,6 +213,13 @@ function EditBomTable() {
             onChange={(_, { value }) => setSelectedCategory(value)}
           />
         </Form.Field>
+
+        {updateTime && (
+          <Form.Field>
+            <label>上次更新時間</label>
+            <p>{updateTime.toLocaleString()}</p>
+          </Form.Field>
+        )}
 
         <Table celled>
           <Table.Header>
@@ -260,7 +304,7 @@ function EditBomTable() {
           onClick={addItem} 
           style={{ marginTop: '1rem', marginBottom: '1rem' }}
         >
-          新增項目
+          新增成本項目
         </Button>
         <Form.Button 
           primary 
