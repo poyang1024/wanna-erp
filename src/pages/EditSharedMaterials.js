@@ -14,6 +14,7 @@ function EditSharedMaterial() {
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [material, setMaterial] = useState({ name: "", unitCost: "", lastUpdated: null });
+    const [originalUnitCost, setOriginalUnitCost] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
 
@@ -43,7 +44,9 @@ function EditSharedMaterial() {
         try {
             const doc = await firebase.firestore().collection('shared_materials').doc(id).get();
             if (doc.exists) {
-                setMaterial({ id: doc.id, ...doc.data() });
+                const data = { id: doc.id, ...doc.data() };
+                setMaterial(data);
+                setOriginalUnitCost(data.unitCost);
             } else {
                 toast.error('找不到指定的共用料');
                 navigate('/shared-material');
@@ -71,15 +74,17 @@ function EditSharedMaterial() {
         try {
             const updatedAt = firebase.firestore.Timestamp.now();
             const updatedBy = {
-                displayName: firebase.auth().currentUser.email || "匿名",
-                uid: firebase.auth().currentUser.uid,
-                email: firebase.auth().currentUser.email
+                displayName: user.email || "管理員",
+                uid: user.uid,
+                email: user.email
             };
+
+            const newUnitCost = parseFloat(material.unitCost);
 
             // 更新現有的共用料
             await firebase.firestore().collection('shared_materials').doc(id).update({
                 name: material.name,
-                unitCost: parseFloat(material.unitCost),
+                unitCost: newUnitCost,
                 updatedAt: updatedAt,
                 updatedBy: updatedBy,
                 lastUpdated: updatedAt
@@ -89,10 +94,10 @@ function EditSharedMaterial() {
             await firebase.firestore().collection('shared_materials_history').add({
                 originalId: id,
                 name: material.name,
-                unitCost: parseFloat(material.unitCost),
+                unitCost: newUnitCost,
                 updatedAt: updatedAt,
                 updatedBy: updatedBy,
-                previousUnitCost: material.unitCost, // 儲存之前的單位成本
+                previousUnitCost: originalUnitCost,
                 changeType: 'update'
             });
 

@@ -109,7 +109,7 @@ function Header() {
                         </>
                     ) : (
                         <>
-                        <Menu.Item 
+                        {/* <Menu.Item 
                             as={Link} 
                             to="/bom-table" 
                             style={viewButtonStyle} 
@@ -117,7 +117,7 @@ function Header() {
                             onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
                         >
                             查看成本列表
-                        </Menu.Item>
+                        </Menu.Item> */}
                         <Menu.Item as={Link} to="/signin">
                             登入
                         </Menu.Item>

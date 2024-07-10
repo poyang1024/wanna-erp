@@ -10,13 +10,11 @@ import "firebase/compat/auth";
 function NewSharedMaterial() {
     const navigate = useNavigate();
 
-    // 狀態管理
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [material, setMaterial] = useState({ name: "", unitCost: "" });
     const [isLoading, setIsLoading] = useState(false);
 
-    // 檢查用戶登入狀態
     useEffect(() => {
         const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
             setUser(user);
@@ -37,47 +35,65 @@ function NewSharedMaterial() {
         return () => unsubscribe();
     }, [navigate]);
 
-    // 更新共用料的特定欄位
     const updateMaterial = (field, value) => {
         setMaterial({ ...material, [field]: value });
     };
 
-    // 提交共用料到Firebase
     const onSubmit = async (e) => {
         e.preventDefault();
         if (!user) {
-            toast.error('需要登入才有權限新增共用料', {
-                position: "top-center",
-                autoClose: 500,
-                hideProgressBar: false,
-                closeOnClick: true,
-                pauseOnHover: true,
-                draggable: true,
-                onClose: () => navigate('/signin')
-            });
+            toast.error('需要登入才有權限新增共用料');
+            navigate('/signin');
             return;
         }
 
         setIsLoading(true);
+        const db = firebase.firestore();
+        const batch = db.batch();
+
         try {
-            const docRef = firebase.firestore().collection('shared_materials').doc();
-            await docRef.set({
+            // console.log("開始新增共用料和歷史記錄");
+
+            const docRef = db.collection('shared_materials').doc();
+            const timestamp = firebase.firestore.Timestamp.now();
+            const newMaterial = {
                 name: material.name,
                 unitCost: parseFloat(material.unitCost),
-                createdAt: firebase.firestore.Timestamp.now(),
+                createdAt: timestamp,
                 createdBy: {
-                    displayName: firebase.auth().currentUser.email || "匿名",
-                    uid: firebase.auth().currentUser.uid,
-                    email: firebase.auth().currentUser.email
+                    displayName: user.email || "匿名",
+                    uid: user.uid,
+                    email: user.email
                 }
-            });
+            };
+
+            // 新增共用料
+            batch.set(docRef, newMaterial);
+            // console.log("共用料準備新增:", newMaterial);
+
+            // 新增歷史記錄
+            const historyRef = db.collection('shared_materials_history').doc();
+            const historyData = {
+                originalId: docRef.id,
+                name: newMaterial.name,
+                unitCost: newMaterial.unitCost,
+                updatedAt: timestamp,
+                updatedBy: newMaterial.createdBy,
+                changeType: 'create'
+            };
+            batch.set(historyRef, historyData);
+            // console.log("歷史記錄準備新增:", historyData);
+
+            // 執行批次寫入
+            await batch.commit();
+            // console.log("批次寫入成功完成");
 
             setIsLoading(false);
             toast.success('共用料新增成功！');
-            navigate('/shared-material'); // 提交成功後導航到首頁
+            navigate('/shared-material');
         } catch (error) {
-            console.error("Error adding shared material: ", error);
-            toast.error('新增共用料時發生錯誤');
+            // console.error("Error adding shared material and history: ", error);
+            toast.error(`新增共用料時發生錯誤: ${error.message}`);
             setIsLoading(false);
         }
     };
