@@ -113,7 +113,7 @@ function SharedMaterials() {
         },
         {
             name: '單位成本',
-            selector: row => row.unitCost,
+            selector: row => row.purchaseUnitCost,
             sortable: true,
         },
         {

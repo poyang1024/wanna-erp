@@ -64,7 +64,7 @@ function BomTables() {
         return sum + itemCost + tax;
       }, 0);
 
-      return { id, ...data, items, totalCost: totalCost.toFixed(2) };
+      return { id, ...data, items, totalCost: totalCost.toFixed(2),updatedByDisplayName: data.updatedBy ? data.updatedBy.displayName : '尚未更新' };
     }));
     setBomTables(bomTablesData);
 
@@ -95,6 +95,7 @@ function BomTables() {
         name: '項目名稱',
         selector: row => row.name,
         sortable: true,
+        width: '200px',
       },
       {
         name: '數量',
@@ -102,7 +103,7 @@ function BomTables() {
         sortable: true,
       },
       {
-        name: '單位成本',
+        name: '成品單位成本',
         selector: row => parseFloat(row.unitCost).toFixed(2),
         sortable: true,
       },
@@ -175,6 +176,7 @@ function BomTables() {
         {bomTable.updatedAt && (
           <p style={{ marginTop: '0.5em', fontWeight: 'bold' }}>上次更新時間: <span style={{ color: 'gray' }}>{new Date(bomTable.updatedAt.seconds * 1000 + bomTable.updatedAt.nanoseconds / 1000000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</span></p>
         )}
+        <p style={{ marginTop: '0.5em', fontWeight: 'bold' }}>最後更新者: <span style={{ color: 'gray' }}>{bomTable.updatedByDisplayName}</span></p>
       </Segment>
     ));
   };

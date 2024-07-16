@@ -90,7 +90,7 @@ function SharedMaterialHistory() {
                             <Table.Row>
                                 <Table.HeaderCell>更新時間</Table.HeaderCell>
                                 <Table.HeaderCell>名稱</Table.HeaderCell>
-                                <Table.HeaderCell>單位成本</Table.HeaderCell>
+                                <Table.HeaderCell>進貨單位成本</Table.HeaderCell>
                                 <Table.HeaderCell>更新者</Table.HeaderCell>
                                 <Table.HeaderCell>變更類型</Table.HeaderCell>
                             </Table.Row>
@@ -101,7 +101,7 @@ function SharedMaterialHistory() {
                                 <Table.Row key={record.id}>
                                     <Table.Cell>{record.updatedAt}</Table.Cell>
                                     <Table.Cell>{record.name}</Table.Cell>
-                                    <Table.Cell>{record.unitCost}</Table.Cell>
+                                    <Table.Cell>{record.purchaseUnitCost}</Table.Cell>
                                     <Table.Cell>{record.updatedBy.email}</Table.Cell>
                                     <Table.Cell>{record.changeType}</Table.Cell>
                                 </Table.Row>

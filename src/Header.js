@@ -60,7 +60,7 @@ function Header() {
     return (
         <>
             <Menu>
-                <Menu.Item as={Link} to="/">KindFood ERP System</Menu.Item>
+                <Menu.Item as={Link} to="/">KIND FOOD ERP-System</Menu.Item>
                 <Menu.Item>
                     <Search />
                 </Menu.Item>
@@ -87,21 +87,21 @@ function Header() {
                             </Menu.Item>
                             <Menu.Item 
                                 as={Link} 
+                                to="/bom-table" 
+                                style={viewButtonStyle} 
+                                onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
+                                onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
+                            >
+                                查看 BOM 表
+                            </Menu.Item>
+                            <Menu.Item 
+                                as={Link} 
                                 to="/shared-material" 
                                 style={viewButtonStyle} 
                                 onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
                                 onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
                             >
                                 查看共用料
-                            </Menu.Item>
-                            <Menu.Item 
-                                as={Link} 
-                                to="/bom-table" 
-                                style={viewButtonStyle} 
-                                onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
-                                onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
-                            >
-                                查看成本列表
                             </Menu.Item>
                             <Menu.Item onClick={handleLogout}>
                                 登出

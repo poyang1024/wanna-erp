@@ -27,7 +27,7 @@ function HomePage() {
           color: '#333'
         }}
       >
-        歡迎來到 KindFood 康福先生 ERP 系統
+        歡迎來到 KIND FOOD 康福先生 ERP 系統
       </Header>
     </Container>
   );

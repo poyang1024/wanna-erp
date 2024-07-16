@@ -173,7 +173,7 @@ function EditBomTable() {
       
       setTimeout(() => {
         navigate('/bom-table');
-      }, 1000);
+      }, 800);
 
     } catch (error) {
       console.error("Error updating BOM table: ", error);

@@ -13,8 +13,14 @@ function EditSharedMaterial() {
 
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
-    const [material, setMaterial] = useState({ name: "", unitCost: "", lastUpdated: null });
-    const [originalUnitCost, setOriginalUnitCost] = useState(null);
+    const [material, setMaterial] = useState({
+        name: "",
+        purchaseUnitCost: "",
+        productUnit: "",
+        unitCost: "",
+        lastUpdated: null
+    });
+    const [originalMaterial, setOriginalMaterial] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
 
@@ -40,13 +46,25 @@ function EditSharedMaterial() {
         return () => unsubscribe();
     }, [navigate, id]);
 
+    useEffect(() => {
+        if (material.purchaseUnitCost && material.productUnit) {
+            const calculatedProductUnitCost = parseFloat(material.purchaseUnitCost) / parseFloat(material.productUnit);
+            setMaterial(prev => ({
+                ...prev,
+                unitCost: isNaN(calculatedProductUnitCost) ? "" : calculatedProductUnitCost.toFixed(2)
+            }));
+        } else {
+            setMaterial(prev => ({ ...prev, unitCost: "" }));
+        }
+    }, [material.purchaseUnitCost, material.productUnit]);
+
     const fetchMaterial = async () => {
         try {
             const doc = await firebase.firestore().collection('shared_materials').doc(id).get();
             if (doc.exists) {
                 const data = { id: doc.id, ...doc.data() };
                 setMaterial(data);
-                setOriginalUnitCost(data.unitCost);
+                setOriginalMaterial(data);
             } else {
                 toast.error('找不到指定的共用料');
                 navigate('/shared-material');
@@ -70,6 +88,11 @@ function EditSharedMaterial() {
             return;
         }
 
+        if (!material.name || !material.purchaseUnitCost || !material.productUnit) {
+            toast.error('請填寫所有必填欄位');
+            return;
+        }
+
         setIsLoading(true);
         try {
             const updatedAt = firebase.firestore.Timestamp.now();
@@ -79,25 +102,26 @@ function EditSharedMaterial() {
                 email: user.email
             };
 
-            const newUnitCost = parseFloat(material.unitCost);
-
-            // 更新現有的共用料
-            await firebase.firestore().collection('shared_materials').doc(id).update({
+            const updatedMaterial = {
                 name: material.name,
-                unitCost: newUnitCost,
+                purchaseUnitCost: parseFloat(material.purchaseUnitCost),
+                productUnit: parseFloat(material.productUnit),
+                unitCost: parseFloat(material.unitCost),
                 updatedAt: updatedAt,
                 updatedBy: updatedBy,
                 lastUpdated: updatedAt
-            });
+            };
+
+            // 更新現有的共用料
+            await firebase.firestore().collection('shared_materials').doc(id).update(updatedMaterial);
 
             // 創建歷史記錄
             await firebase.firestore().collection('shared_materials_history').add({
                 originalId: id,
-                name: material.name,
-                unitCost: newUnitCost,
-                updatedAt: updatedAt,
-                updatedBy: updatedBy,
-                previousUnitCost: originalUnitCost,
+                ...updatedMaterial,
+                previousPurchaseUnitCost: originalMaterial.purchaseUnitCost,
+                previousProductUnit: originalMaterial.productUnit,
+                previousunitCost: originalMaterial.unitCost,
                 changeType: 'update'
             });
 
@@ -127,14 +151,34 @@ function EditSharedMaterial() {
                         placeholder="共用料名稱" 
                         value={material.name}
                         onChange={(e) => updateMaterial('name', e.target.value)}
+                        required
                     />
                     <Form.Input 
                         fluid 
-                        label="單位成本"
+                        label="進貨單位成本"
                         type="number" 
-                        placeholder="單位成本" 
+                        step="0.01"
+                        placeholder="進貨單位成本" 
+                        value={material.purchaseUnitCost}
+                        onChange={(e) => updateMaterial('purchaseUnitCost', e.target.value)}
+                        required
+                    />
+                    <Form.Input 
+                        fluid 
+                        label="成品單位"
+                        type="number" 
+                        step="0.01"
+                        placeholder="成品單位" 
+                        value={material.productUnit}
+                        onChange={(e) => updateMaterial('productUnit', e.target.value)}
+                        required
+                    />
+                    <Form.Input 
+                        fluid 
+                        label="成品單位成本 (自動計算)"
+                        type="number" 
                         value={material.unitCost}
-                        onChange={(e) => updateMaterial('unitCost', e.target.value)}
+                        readOnly
                     />
                     {material.lastUpdated && (
                         <Form.Field>

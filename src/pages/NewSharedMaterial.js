@@ -12,7 +12,12 @@ function NewSharedMaterial() {
 
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
-    const [material, setMaterial] = useState({ name: "", unitCost: "" });
+    const [material, setMaterial] = useState({
+        name: "",
+        purchaseUnitCost: "",
+        productUnit: "",
+        unitCost: ""
+    });
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -35,6 +40,18 @@ function NewSharedMaterial() {
         return () => unsubscribe();
     }, [navigate]);
 
+    useEffect(() => {
+        if (material.purchaseUnitCost && material.productUnit) {
+            const calculatedProductUnitCost = parseFloat(material.purchaseUnitCost) / parseFloat(material.productUnit);
+            setMaterial(prev => ({
+                ...prev,
+                unitCost: isNaN(calculatedProductUnitCost) ? "" : calculatedProductUnitCost.toFixed(2)
+            }));
+        } else {
+            setMaterial(prev => ({ ...prev, unitCost: "" }));
+        }
+    }, [material.purchaseUnitCost, material.productUnit]);
+
     const updateMaterial = (field, value) => {
         setMaterial({ ...material, [field]: value });
     };
@@ -47,17 +64,22 @@ function NewSharedMaterial() {
             return;
         }
 
+        if (!material.name || !material.purchaseUnitCost || !material.productUnit) {
+            toast.error('請填寫所有必填欄位');
+            return;
+        }
+
         setIsLoading(true);
         const db = firebase.firestore();
         const batch = db.batch();
 
         try {
-            // console.log("開始新增共用料和歷史記錄");
-
             const docRef = db.collection('shared_materials').doc();
             const timestamp = firebase.firestore.Timestamp.now();
             const newMaterial = {
                 name: material.name,
+                purchaseUnitCost: parseFloat(material.purchaseUnitCost),
+                productUnit: parseFloat(material.productUnit),
                 unitCost: parseFloat(material.unitCost),
                 createdAt: timestamp,
                 createdBy: {
@@ -67,32 +89,24 @@ function NewSharedMaterial() {
                 }
             };
 
-            // 新增共用料
             batch.set(docRef, newMaterial);
-            // console.log("共用料準備新增:", newMaterial);
 
-            // 新增歷史記錄
             const historyRef = db.collection('shared_materials_history').doc();
             const historyData = {
                 originalId: docRef.id,
-                name: newMaterial.name,
-                unitCost: newMaterial.unitCost,
+                ...newMaterial,
                 updatedAt: timestamp,
                 updatedBy: newMaterial.createdBy,
                 changeType: 'create'
             };
             batch.set(historyRef, historyData);
-            // console.log("歷史記錄準備新增:", historyData);
 
-            // 執行批次寫入
             await batch.commit();
-            // console.log("批次寫入成功完成");
 
             setIsLoading(false);
             toast.success('共用料新增成功！');
             navigate('/shared-material');
         } catch (error) {
-            // console.error("Error adding shared material and history: ", error);
             toast.error(`新增共用料時發生錯誤: ${error.message}`);
             setIsLoading(false);
         }
@@ -114,14 +128,34 @@ function NewSharedMaterial() {
                         placeholder="共用料名稱" 
                         value={material.name}
                         onChange={(e) => updateMaterial('name', e.target.value)}
+                        required
                     />
                     <Form.Input 
                         fluid 
-                        label="單位成本"
+                        label="進貨單位成本"
                         type="number" 
-                        placeholder="單位成本" 
+                        step="0.01"
+                        placeholder="進貨單位成本" 
+                        value={material.purchaseUnitCost}
+                        onChange={(e) => updateMaterial('purchaseUnitCost', e.target.value)}
+                        required
+                    />
+                    <Form.Input 
+                        fluid 
+                        label="成品單位"
+                        type="number" 
+                        step="0.01"
+                        placeholder="成品單位" 
+                        value={material.productUnit}
+                        onChange={(e) => updateMaterial('productUnit', e.target.value)}
+                        required
+                    />
+                    <Form.Input 
+                        fluid 
+                        label="成品單位成本 (自動計算)"
+                        type="number" 
                         value={material.unitCost}
-                        onChange={(e) => updateMaterial('unitCost', e.target.value)}
+                        readOnly
                     />
                     <Form.Button 
                         loading={isLoading} 
