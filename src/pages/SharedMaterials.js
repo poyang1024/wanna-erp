@@ -70,7 +70,9 @@ function SharedMaterials() {
                     id: doc.id,
                     ...data,
                     createdAt: data.createdAt,
-                    lastUpdated: data.lastUpdated || null
+                    lastUpdated: data.lastUpdated || null,
+                    // 計算成品單位成本
+                    unitCost: (parseFloat(data.purchaseUnitCost) / parseFloat(data.productUnit)).toFixed(2)
                 };
             });
             setMaterials(materialsData);
@@ -110,21 +112,34 @@ function SharedMaterials() {
             name: '名稱',
             selector: row => row.name,
             sortable: true,
+            width: '200px',
         },
         {
-            name: '單位成本',
+            name: '進貨單位成本',
             selector: row => row.purchaseUnitCost,
+            sortable: true,
+        },
+        {
+            name: '成品單位',
+            selector: row => row.productUnit,
+            sortable: true,
+        },
+        {
+            name: '成品單位成本',
+            selector: row => row.unitCost,
             sortable: true,
         },
         {
             name: '建立時間',
             selector: row => row.createdAt.toDate().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
             sortable: true,
+            width: '175px',
         },
         {
             name: '最近更新時間',
             selector: row => row.lastUpdated ? row.lastUpdated.toDate().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }) : '尚未更新',
             sortable: true,
+            width: '175px',
         },
         {
             name: '操作',
@@ -135,6 +150,7 @@ function SharedMaterials() {
                     {/* <Button negative icon="trash" onClick={() => handleDelete(row)} /> */}
                 </>
             ),
+            width: '210px',
         },
     ];
 

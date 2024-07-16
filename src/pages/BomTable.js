@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Grid, Image, Message, Segment, Button } from "semantic-ui-react";
+import { Grid, Image, Message, Segment, Button, Loader, Dimmer } from "semantic-ui-react";
 import DataTable from 'react-data-table-component';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -64,7 +64,7 @@ function BomTables() {
         return sum + itemCost + tax;
       }, 0);
 
-      return { id, ...data, items, totalCost: totalCost.toFixed(2),updatedByDisplayName: data.updatedBy ? data.updatedBy.displayName : '尚未更新' };
+      return { id, ...data, items, totalCost: totalCost.toFixed(2), updatedByDisplayName: data.updatedBy ? data.updatedBy.displayName : '尚未更新' };
     }));
     setBomTables(bomTablesData);
 
@@ -151,12 +151,21 @@ function BomTables() {
     return sortedBomTables.map(bomTable => (
       <Segment key={bomTable.id} raised>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1em' }}>
-          <div>
-            <Image src={bomTable.imageUrl || 'https://react.semantic-ui.com/images/wireframe/image.png'} size="small" style={{ marginBottom: '1em' }} />
+          <div style={{ position: 'relative' }}>
+            <Dimmer active={!bomTable.imageLoaded} inverted>
+              <Loader>Loading</Loader>
+            </Dimmer>
+            <Image
+              src={bomTable.imageUrl || 'https://react.semantic-ui.com/images/wireframe/image.png'}
+              size="small"
+              style={{ marginBottom: '1em' }}
+              onLoad={() => handleImageLoad(bomTable.id)}
+              hidden={!bomTable.imageLoaded}
+            />
             <h2>{bomTable.tableName}</h2>
             <p style={{ fontSize: '1.3em', color: 'black' }}>
-            &nbsp;&nbsp;&nbsp;料號: {bomTable.productCode || '未指定'}<br />
-            &nbsp;&nbsp;&nbsp;產品條碼: {bomTable.barcode || '未指定'}
+              &nbsp;&nbsp;&nbsp;料號: {bomTable.productCode || '未指定'}<br />
+              &nbsp;&nbsp;&nbsp;產品條碼: {bomTable.barcode || '未指定'}
             </p>
           </div>
           <Button primary onClick={() => handleEdit(bomTable.id)}>修改</Button>
@@ -181,6 +190,14 @@ function BomTables() {
     ));
   };
 
+  const handleImageLoad = (id) => {
+    setBomTables(prevBomTables =>
+      prevBomTables.map(bomTable =>
+        bomTable.id === id ? { ...bomTable, imageLoaded: true } : bomTable
+      )
+    );
+  };
+
   if (!isAuthenticated) {
     return null;
   }
@@ -195,8 +212,7 @@ function BomTables() {
             onSelectCategory={setSelectedCategory}
           />
         </Grid.Column>
-        <Grid.Column width={1}>
-        </Grid.Column>
+        <Grid.Column width={1}></Grid.Column>
         <Grid.Column width={12}>
           {renderContent()}
         </Grid.Column>

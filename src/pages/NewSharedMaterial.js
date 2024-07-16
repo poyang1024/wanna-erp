@@ -144,7 +144,7 @@ function NewSharedMaterial() {
                         fluid 
                         label="成品單位"
                         type="number" 
-                        step="0.01"
+                        step="0.1"
                         placeholder="成品單位" 
                         value={material.productUnit}
                         onChange={(e) => updateMaterial('productUnit', e.target.value)}
