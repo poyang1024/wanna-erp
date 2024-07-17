@@ -112,7 +112,7 @@ function SharedMaterials() {
             name: '名稱',
             selector: row => row.name,
             sortable: true,
-            width: '200px',
+            width: '235px',
         },
         {
             name: '進貨單位成本',

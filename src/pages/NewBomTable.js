@@ -11,7 +11,7 @@ import "firebase/compat/auth";
 function NewBOMTable() {
     const navigate = useNavigate();
 
-    // 狀態管理
+    // State management
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [tableName, setTableName] = useState("");
@@ -31,7 +31,7 @@ function NewBOMTable() {
     const [selectedCategory, setSelectedCategory] = useState("");
     const [sharedMaterials, setSharedMaterials] = useState([]);
 
-    // 檢查用戶登入狀態
+    // Check user login status
     useEffect(() => {
         const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
             setUser(user);
@@ -52,7 +52,7 @@ function NewBOMTable() {
         return () => unsubscribe();
     }, [navigate]);
 
-    // 從 Firebase 獲取類別和共用料
+    // Fetch categories and shared materials from Firebase
     useEffect(() => {
         async function fetchData() {
             try {
@@ -83,7 +83,23 @@ function NewBOMTable() {
         }
     }, [user]);
 
-    // 新增項目到 BOM 表格
+    // Check for copied BOM table data in sessionStorage
+    useEffect(() => {
+        const copiedDataString = sessionStorage.getItem('copyBomTableData');
+        if (copiedDataString) {
+            const copiedData = JSON.parse(copiedDataString);
+            setTableName(copiedData.tableName);
+            setProductCode(copiedData.productCode);
+            setBarcode(copiedData.barcode);
+            setSelectedCategory(copiedData.category);
+            setItems(copiedData.items);
+            
+            // Clear the sessionStorage after using the data
+            sessionStorage.removeItem('copyBomTableData');
+        }
+    }, []);
+
+    // Add item to BOM table
     const addItem = () => {
         setItems([...items, { 
             name: "", 
@@ -95,7 +111,7 @@ function NewBOMTable() {
         }]);
     };
 
-    // 更新特定項目的欄位
+    // Update specific field of an item
     const updateItem = (index, field, value) => {
         const newItems = [...items];
         newItems[index][field] = value;
@@ -114,13 +130,13 @@ function NewBOMTable() {
         setItems(newItems);
     };
 
-    // 從 BOM 表格刪除指定項目
+    // Delete item from BOM table
     const deleteItem = (index) => {
         const newItems = items.filter((_, i) => i !== index);
         setItems(newItems);
     };
 
-    // 計算 BOM 表格的總成本
+    // Calculate total cost of BOM table
     const calculateTotalCost = () => {
         return items.reduce((total, item) => {
             const unitCost = parseFloat(item.unitCost) || 0;
@@ -130,10 +146,10 @@ function NewBOMTable() {
         }, 0).toFixed(2);
     };
 
-    // 圖片預覽 URL
+    // Image preview URL
     const preview = file ? URL.createObjectURL(file) : 'https://react.semantic-ui.com/images/wireframe/image.png';
 
-    // 將 BOM 表格提交到 Firebase
+    // Submit BOM table to Firebase
     const onSubmit = async () => {
         if (!user) {
             toast.error('需要登入才能新增或修改 BOM 表格', {
@@ -159,7 +175,7 @@ function NewBOMTable() {
                 imageUrl = await snapshot.ref.getDownloadURL();
             }
 
-            // 處理項目，區分共用料和非共用料
+            // Process items, distinguishing between shared and non-shared materials
             const processedItems = items.map(item => ({
                 name: item.isShared 
                     ? firebase.firestore().doc(`shared_materials/${item.materialRef}`)

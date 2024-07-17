@@ -134,6 +134,38 @@ function BomTables() {
     navigate(`/edit-bom-table/${bomTableId}`);
   };
 
+  const handleCopy = (bomTable) => {
+    // Get the current date and time
+    const currentDate = new Date();
+    const formattedDate = currentDate.toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    const copyData = {
+      tableName: `${bomTable.tableName} (${formattedDate} 複製)`,
+      productCode: bomTable.productCode,
+      barcode: bomTable.barcode,
+      category: bomTable.category,
+      items: bomTable.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+        isShared: item.isShared,
+        materialRef: item.materialRef,
+        isTaxed: item.isTaxed
+      }))
+    };
+    
+    // Use sessionStorage to store the copyData
+    sessionStorage.setItem('copyBomTableData', JSON.stringify(copyData));
+    
+    navigate('/new-bomtable');
+  };
+
   const renderContent = () => {
     if (!isAuthenticated) {
       return null;
@@ -168,7 +200,10 @@ function BomTables() {
               &nbsp;&nbsp;&nbsp;產品條碼: {bomTable.barcode || '未指定'}
             </p>
           </div>
-          <Button primary onClick={() => handleEdit(bomTable.id)}>修改</Button>
+          <div>
+            <Button primary onClick={() => handleEdit(bomTable.id)}>修改</Button>
+            <Button color="teal" onClick={() => handleCopy(bomTable)}>複製</Button>
+          </div>
         </div>
         <DataTable
           columns={columns}

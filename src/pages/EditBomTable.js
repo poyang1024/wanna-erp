@@ -250,7 +250,7 @@ function EditBomTable() {
             <Table.Row>
               <Table.HeaderCell>是否為共用料</Table.HeaderCell>
               <Table.HeaderCell>項目名稱</Table.HeaderCell>
-              <Table.HeaderCell>數量</Table.HeaderCell>
+              <Table.HeaderCell style={{ width: '120px' }}>數量</Table.HeaderCell>
               <Table.HeaderCell>單位成本</Table.HeaderCell>
               <Table.HeaderCell>是否含稅</Table.HeaderCell>
               <Table.HeaderCell>稅金</Table.HeaderCell>
