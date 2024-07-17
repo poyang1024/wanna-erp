@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Grid, Image, Message, Segment, Button, Loader, Dimmer } from "semantic-ui-react";
 import DataTable from 'react-data-table-component';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Categorys from "../components/Categorys";
 import firebase from "../utils/firebase";
@@ -11,24 +11,18 @@ function BomTables() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+      setIsLoading(true);
       if (user) {
         setIsAuthenticated(true);
         fetchData();
       } else {
         setIsAuthenticated(false);
-        toast.error('權限不足，請先登入', {
-          position: "top-center",
-          autoClose: 1000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-        navigate('/signin');
+        setIsLoading(false);
       }
     });
 
@@ -36,42 +30,56 @@ function BomTables() {
   }, [navigate]);
 
   const fetchData = async () => {
-    // Fetch BOM tables
-    const bomTablesSnapshot = await firebase.firestore().collection("bom_tables").get();
-    const bomTablesData = await Promise.all(bomTablesSnapshot.docs.map(async docSnapshot => {
-      const id = docSnapshot.id;
-      const data = docSnapshot.data();
+    try {
+      // Fetch BOM tables
+      const bomTablesSnapshot = await firebase.firestore().collection("bom_tables").get();
+      const bomTablesData = await Promise.all(bomTablesSnapshot.docs.map(async docSnapshot => {
+        const id = docSnapshot.id;
+        const data = docSnapshot.data();
 
-      // Fetch referenced unitCost and name for shared materials
-      const items = await Promise.all(data.items.map(async item => {
-        if (item.isShared) {
-          if (item.unitCost instanceof firebase.firestore.DocumentReference) {
-            const unitCostDoc = await item.unitCost.get();
-            item.unitCost = unitCostDoc.data().unitCost;
+        // Fetch referenced unitCost and name for shared materials
+        const items = await Promise.all(data.items.map(async item => {
+          if (item.isShared) {
+            if (item.unitCost instanceof firebase.firestore.DocumentReference) {
+              const unitCostDoc = await item.unitCost.get();
+              item.unitCost = unitCostDoc.data().unitCost;
+            }
+            if (item.name instanceof firebase.firestore.DocumentReference) {
+              const nameDoc = await item.name.get();
+              item.name = nameDoc.data().name;
+            }
           }
-          if (item.name instanceof firebase.firestore.DocumentReference) {
-            const nameDoc = await item.name.get();
-            item.name = nameDoc.data().name;
-          }
-        }
-        return item;
+          return item;
+        }));
+
+        // Calculate total cost in frontend, including tax
+        const totalCost = items.reduce((sum, item) => {
+          const itemCost = (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
+          const tax = item.isTaxed ? itemCost * 0.05 : 0;
+          return sum + itemCost + tax;
+        }, 0);
+
+        return { 
+          id, 
+          ...data, 
+          items, 
+          totalCost: totalCost.toFixed(2), 
+          updatedByDisplayName: data.updatedBy ? data.updatedBy.displayName : '尚未更新',
+          imageLoaded: false
+        };
       }));
+      setBomTables(bomTablesData);
 
-      // Calculate total cost in frontend, including tax
-      const totalCost = items.reduce((sum, item) => {
-        const itemCost = (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
-        const tax = item.isTaxed ? itemCost * 0.05 : 0;
-        return sum + itemCost + tax;
-      }, 0);
-
-      return { id, ...data, items, totalCost: totalCost.toFixed(2), updatedByDisplayName: data.updatedBy ? data.updatedBy.displayName : '尚未更新' };
-    }));
-    setBomTables(bomTablesData);
-
-    // Fetch categories
-    const categoriesSnapshot = await firebase.firestore().collection("categorys").get();
-    const categoriesData = categoriesSnapshot.docs.map(doc => doc.data());
-    setCategories(categoriesData);
+      // Fetch categories
+      const categoriesSnapshot = await firebase.firestore().collection("categorys").get();
+      const categoriesData = categoriesSnapshot.docs.map(doc => doc.data());
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error('獲取數據時出錯');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const filteredBomTables = selectedCategory
@@ -135,7 +143,6 @@ function BomTables() {
   };
 
   const handleCopy = (bomTable) => {
-    // Get the current date and time
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleDateString('zh-TW', {
       year: 'numeric',
@@ -160,17 +167,20 @@ function BomTables() {
       }))
     };
     
-    // Use sessionStorage to store the copyData
     sessionStorage.setItem('copyBomTableData', JSON.stringify(copyData));
     
     navigate('/new-bomtable');
   };
 
-  const renderContent = () => {
-    if (!isAuthenticated) {
-      return null;
-    }
+  const handleImageLoad = (id) => {
+    setBomTables(prevBomTables =>
+      prevBomTables.map(bomTable =>
+        bomTable.id === id ? { ...bomTable, imageLoaded: true } : bomTable
+      )
+    );
+  };
 
+  const renderContent = () => {
     if (selectedCategory && sortedBomTables.length === 0) {
       return (
         <Message info>
@@ -225,16 +235,21 @@ function BomTables() {
     ));
   };
 
-  const handleImageLoad = (id) => {
-    setBomTables(prevBomTables =>
-      prevBomTables.map(bomTable =>
-        bomTable.id === id ? { ...bomTable, imageLoaded: true } : bomTable
-      )
+  if (isLoading) {
+    return (
+      <Dimmer active>
+        <Loader>加載中...</Loader>
+      </Dimmer>
     );
-  };
+  }
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <Message warning>
+        <Message.Header>需要登入</Message.Header>
+        <p>您需要登入才能查看此頁面。請 <Button as={Link} to="/signin">登入</Button></p>
+      </Message>
+    );
   }
 
   return (

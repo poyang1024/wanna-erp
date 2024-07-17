@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Container, Button } from 'semantic-ui-react';
 import { useNavigate } from 'react-router-dom';
 import firebase from '../utils/firebase';
 import 'firebase/compat/auth';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function Signin() {
     const navigate = useNavigate();
@@ -11,24 +12,61 @@ function Signin() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
+    useEffect(() => {
+        const checkLoginStatus = () => {
+            const lastLogoutTime = localStorage.getItem('lastLogoutTime');
+            const currentTime = new Date().getTime();
+            
+            if (lastLogoutTime && currentTime - parseInt(lastLogoutTime) <= 30000) {
+                // 如果在30秒內重新打開頁面，嘗試恢復登入狀態
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (user) {
+                        navigate('/bom-table');
+                    }
+                });
+            } else if (lastLogoutTime) {
+                // 如果超過30秒，確保用戶已登出
+                firebase.auth().signOut();
+                localStorage.removeItem('lastLogoutTime');
+            }
+        };
+
+        checkLoginStatus();
+
+        const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                user.getIdToken(true).then(() => {
+                    setTimeout(() => {
+                        firebase.auth().signOut().then(() => {
+                            localStorage.setItem('lastLogoutTime', new Date().getTime().toString());
+                            toast.info('登入已過期，請重新登入', {
+                                position: "top-center",
+                                autoClose: 3000,
+                            });
+                            navigate('/signin');
+                        });
+                    }, 10 * 60 * 1000); // 10 分鐘後登出
+                });
+            }
+        });
+
+        return () => unsubscribe();
+    }, [navigate]);
+
     async function onSubmit(e) {
         e.preventDefault();
         setIsLoading(true);
         try {
-            // 使用 firebase 進行登入
+            await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
             await firebase.auth().signInWithEmailAndPassword(email, password);
-            
-            // 設置最後活動時間（這仍然是必要的，因為它初始化了活動時間）
-            localStorage.setItem('lastActivity', Date.now().toString());
             
             toast.success('登入成功！', {
                 position: "top-center",
                 autoClose: 1000,
             });
             
-            // 登入成功後導航到主頁面
             setTimeout(() => {
-                navigate('/bom-table');
+                navigate('/');
             }, 1500);
         } catch (error) {
             switch (error.code) {
@@ -51,6 +89,17 @@ function Signin() {
 
     return (
         <Container>
+            <ToastContainer 
+                position="top-center"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+            />
             <Form onSubmit={onSubmit}>
                 <Form.Input
                     label="信箱"

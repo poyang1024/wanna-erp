@@ -11,20 +11,20 @@ function Header() {
     useEffect(() => {
         const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
             setUser(currentUser);
-            if (!currentUser) {
+            if (!currentUser && isLoggingOut) {
                 setIsLoggingOut(false);
+                navigate("/signin");
             }
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [navigate, isLoggingOut]);
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
         try {
             await firebase.auth().signOut();
-            navigate("/");
-            // onAuthStateChanged 會處理 setIsLoggingOut(false)
+            // 導航邏輯移到了 useEffect 中
         } catch (error) {
             console.error("Logout error:", error);
             setIsLoggingOut(false);
@@ -108,27 +108,15 @@ function Header() {
                             </Menu.Item>
                         </>
                     ) : (
-                        <>
-                        {/* <Menu.Item 
-                            as={Link} 
-                            to="/bom-table" 
-                            style={viewButtonStyle} 
-                            onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
-                            onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
-                        >
-                            查看成本列表
-                        </Menu.Item> */}
                         <Menu.Item as={Link} to="/signin">
                             登入
                         </Menu.Item>
-                        </>
                     )}
                 </Menu.Menu>
             </Menu>
 
-            {/* 全頁面 Loading */}
             <Dimmer active={isLoggingOut} page>
-                <Loader size='large'>登出中...</Loader>
+                <Loader size='large'>登出中，請稍候...</Loader>
             </Dimmer>
         </>
     );
