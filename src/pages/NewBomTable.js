@@ -11,27 +11,20 @@ import "firebase/compat/auth";
 function NewBOMTable() {
     const navigate = useNavigate();
 
-    // State management
+    // 狀態管理
     const [user, setUser] = useState(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [tableName, setTableName] = useState("");
     const [productCode, setProductCode] = useState("");
     const [barcode, setBarcode] = useState("");
-    const [items, setItems] = useState([{ 
-        name: "", 
-        quantity: "", 
-        unitCost: "", 
-        isShared: false, 
-        materialRef: null,
-        isTaxed: false
-    }]);
+    const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [file, setFile] = useState(null);
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState("");
     const [sharedMaterials, setSharedMaterials] = useState([]);
 
-    // Check user login status
+    // 檢查用戶登入狀態
     useEffect(() => {
         const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
             setUser(user);
@@ -52,54 +45,123 @@ function NewBOMTable() {
         return () => unsubscribe();
     }, [navigate]);
 
-    // Fetch categories and shared materials from Firebase
+    // 從 Firebase 獲取類別和共用材料，初始化項目
     useEffect(() => {
-        async function fetchData() {
-            try {
-                const categoriesSnapshot = await firebase.firestore().collection('categorys').get();
-                const categoriesData = categoriesSnapshot.docs.map((doc) => ({
-                    key: doc.id,
-                    text: doc.data().name,
-                    value: doc.data().name
-                }));
-                setCategories(categoriesData);
+        async function initializeData() {
+            if (user) {
+                try {
+                    const categoriesSnapshot = await firebase.firestore().collection('categorys').get();
+                    const categoriesData = categoriesSnapshot.docs.map((doc) => ({
+                        key: doc.id,
+                        text: doc.data().name,
+                        value: doc.data().name
+                    }));
+                    setCategories(categoriesData);
+    
+                    const sharedMaterialsSnapshot = await firebase.firestore().collection('shared_materials').get();
+                    const sharedMaterialsData = sharedMaterialsSnapshot.docs.map((doc) => ({
+                        key: doc.id,
+                        text: doc.data().name,
+                        value: doc.id,
+                        unitCost: doc.data().unitCost
+                    }));
+                    setSharedMaterials(sharedMaterialsData);
+                    // console.log('Shared materials data:', sharedMaterialsData);
 
-                const sharedMaterialsSnapshot = await firebase.firestore().collection('shared_materials').get();
-                const sharedMaterialsData = sharedMaterialsSnapshot.docs.map((doc) => ({
-                    key: doc.id,
-                    text: doc.data().name,
-                    value: doc.id,
-                    unitCost: doc.data().unitCost
-                }));
-                setSharedMaterials(sharedMaterialsData);
-            } catch (error) {
-                console.error('獲取數據時出錯：', error);
-                toast.error('獲取數據時發生錯誤');
+                    const copiedDataString = sessionStorage.getItem('copyBomTableData');
+                    if (copiedDataString) {
+                        const parsed = JSON.parse(copiedDataString);
+                        // console.log('Parsed copied data:', parsed);
+
+                        setTableName(parsed.tableName);
+                        setProductCode(parsed.productCode);
+                        setBarcode(parsed.barcode);
+                        setSelectedCategory(parsed.category);
+
+                        const initializedItems = parsed.items.map(item => {
+                            // console.log('Processing item:', item);
+                            if (item.isShared) {
+                                let materialRef = item.materialRef || item.name;
+                                // console.log('Material ref:', materialRef);
+
+                                const sharedMaterial = sharedMaterialsData.find(m => 
+                                    m.value === materialRef || 
+                                    m.text.toLowerCase() === materialRef.toLowerCase()
+                                );
+                                // console.log('Found shared material:', sharedMaterial);
+
+                                if (sharedMaterial) {
+                                    return {
+                                        ...item,
+                                        name: sharedMaterial.text,
+                                        unitCost: sharedMaterial.unitCost,
+                                        materialRef: sharedMaterial.value
+                                    };
+                                }
+                            }
+                            return item;
+                        });
+                        
+                        // console.log('Initialized items:', initializedItems);
+                        setItems(initializedItems);
+                        sessionStorage.removeItem('copyBomTableData');
+                    } else {
+                        setItems([{ 
+                            name: "", 
+                            quantity: "", 
+                            unitCost: "", 
+                            isShared: false, 
+                            materialRef: null,
+                            isTaxed: false
+                        }]);
+                    }
+                } catch (error) {
+                    // console.error('初始化數據時出錯：', error);
+                    toast.error('初始化數據時發生錯誤');
+                }
             }
         }
-
-        if (user) {
-            fetchData();
-        }
+    
+        initializeData();
     }, [user]);
 
-    // Check for copied BOM table data in sessionStorage
-    useEffect(() => {
-        const copiedDataString = sessionStorage.getItem('copyBomTableData');
-        if (copiedDataString) {
-            const copiedData = JSON.parse(copiedDataString);
-            setTableName(copiedData.tableName);
-            setProductCode(copiedData.productCode);
-            setBarcode(copiedData.barcode);
-            setSelectedCategory(copiedData.category);
-            setItems(copiedData.items);
-            
-            // Clear the sessionStorage after using the data
-            sessionStorage.removeItem('copyBomTableData');
-        }
-    }, []);
+    const updateItem = (index, field, value) => {
+        setItems(prevItems => {
+            const newItems = [...prevItems];
+            const currentItem = { ...newItems[index] };
+    
+            if (field === 'isShared') {
+                if (value) {
+                    // 切換為共用料時
+                    currentItem.isShared = true;
+                    currentItem.materialRef = null; // 清除之前可能選擇的材料引用
+                    // 保留數量和是否含稅的信息
+                    // 清除名稱和單位成本，因為這些將從共用料中獲取
+                    currentItem.name = "";
+                    currentItem.unitCost = "";
+                } else {
+                    // 切換為非共用料時
+                    currentItem.isShared = false;
+                    currentItem.materialRef = null;
+                    // 保留其他所有字段的值
+                }
+            } else if (field === 'materialRef' && currentItem.isShared) {
+                const selectedMaterial = sharedMaterials.find(m => m.value === value);
+                if (selectedMaterial) {
+                    currentItem.materialRef = value;
+                    currentItem.name = selectedMaterial.text;
+                    currentItem.unitCost = selectedMaterial.unitCost;
+                }
+            } else {
+                // 對於其他字段，直接更新值
+                currentItem[field] = value;
+            }
+    
+            newItems[index] = currentItem;
+            return newItems;
+        });
+    };
 
-    // Add item to BOM table
     const addItem = () => {
         setItems([...items, { 
             name: "", 
@@ -111,32 +173,11 @@ function NewBOMTable() {
         }]);
     };
 
-    // Update specific field of an item
-    const updateItem = (index, field, value) => {
-        const newItems = [...items];
-        newItems[index][field] = value;
-        if (field === 'isShared') {
-            newItems[index].name = "";
-            newItems[index].unitCost = "";
-            newItems[index].materialRef = null;
-        } else if (field === 'materialRef' && newItems[index].isShared) {
-            const selectedMaterial = sharedMaterials.find(m => m.value === value);
-            if (selectedMaterial) {
-                newItems[index].name = selectedMaterial.text;
-                newItems[index].unitCost = selectedMaterial.unitCost;
-                newItems[index].materialRef = selectedMaterial.value;
-            }
-        }
-        setItems(newItems);
-    };
-
-    // Delete item from BOM table
     const deleteItem = (index) => {
         const newItems = items.filter((_, i) => i !== index);
         setItems(newItems);
     };
 
-    // Calculate total cost of BOM table
     const calculateTotalCost = () => {
         return items.reduce((total, item) => {
             const unitCost = parseFloat(item.unitCost) || 0;
@@ -146,10 +187,8 @@ function NewBOMTable() {
         }, 0).toFixed(2);
     };
 
-    // Image preview URL
     const preview = file ? URL.createObjectURL(file) : 'https://react.semantic-ui.com/images/wireframe/image.png';
 
-    // Submit BOM table to Firebase
     const onSubmit = async () => {
         if (!user) {
             toast.error('需要登入才能新增或修改 BOM 表格', {
@@ -175,18 +214,26 @@ function NewBOMTable() {
                 imageUrl = await snapshot.ref.getDownloadURL();
             }
 
-            // Process items, distinguishing between shared and non-shared materials
-            const processedItems = items.map(item => ({
-                name: item.isShared 
-                    ? firebase.firestore().doc(`shared_materials/${item.materialRef}`)
-                    : item.name,
-                quantity: parseFloat(item.quantity) || 0,
-                isShared: item.isShared,
-                unitCost: item.isShared
-                    ? firebase.firestore().doc(`shared_materials/${item.materialRef}`)
-                    : parseFloat(item.unitCost) || 0,
-                isTaxed: item.isTaxed
-            }));
+            const processedItems = items.map(item => {
+                if (item.isShared && item.materialRef) {
+                    const sharedMaterialRef = firebase.firestore().doc(`shared_materials/${item.materialRef}`);
+                    return {
+                        name: sharedMaterialRef,
+                        quantity: parseFloat(item.quantity) || 0,
+                        unitCost: sharedMaterialRef,
+                        isShared: item.isShared,
+                        isTaxed: item.isTaxed
+                    };
+                } else {
+                    return {
+                        name: item.name,
+                        quantity: parseFloat(item.quantity) || 0,
+                        unitCost: parseFloat(item.unitCost) || 0,
+                        isShared: item.isShared,
+                        isTaxed: item.isTaxed
+                    };
+                }
+            });
 
             await documentRef.set({
                 tableName,

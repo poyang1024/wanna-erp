@@ -162,11 +162,12 @@ function BomTables() {
         quantity: item.quantity,
         unitCost: item.unitCost,
         isShared: item.isShared,
-        materialRef: item.materialRef,
+        materialRef: item.isShared ? (item.materialRef || item.name) : null,
         isTaxed: item.isTaxed
       }))
     };
     
+    console.log('Copying BOM table:', copyData); // 添加日誌
     sessionStorage.setItem('copyBomTableData', JSON.stringify(copyData));
     
     navigate('/new-bomtable');
