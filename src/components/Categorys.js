@@ -26,6 +26,11 @@ function Categorys({ categories, selectedCategory, onSelectCategory }) {
           </List.Header>
         </List.Content>
       </List.Item>
+      <List.Item style={{ backgroundColor: 'white', cursor: 'default', fontSize: '0.73em', color: 'red', paddingLeft: '1em' }}>
+        注意：
+        <br />如未看到新增或修改後的類別
+        <br />請重新整理頁面！
+      </List.Item>
       {isExpanded && (
         <List.Item style={{ backgroundColor: 'white', cursor: 'default' }}>
           <List.List>
