@@ -54,7 +54,7 @@ function NewBOMTable() {
                     const categoriesData = categoriesSnapshot.docs.map((doc) => ({
                         key: doc.id,
                         text: doc.data().name,
-                        value: doc.data().name
+                        value: doc.id  // 使用文檔 ID 作為值
                     }));
                     setCategories(categoriesData);
     
@@ -240,7 +240,7 @@ function NewBOMTable() {
                 productCode,
                 barcode,
                 items: processedItems,
-                category: selectedCategory,
+                category: selectedCategory ? firebase.firestore().doc(`categorys/${selectedCategory}`) : null,
                 createdAt: firebase.firestore.Timestamp.now(),
                 createdBy: {
                     displayName: firebase.auth().currentUser.displayName || "管理員",

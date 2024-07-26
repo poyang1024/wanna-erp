@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Grid, Image, Message, Segment, Button, Loader, Dimmer } from "semantic-ui-react";
+import { Grid, Image, Message, Segment, Button, Loader, Dimmer, Tab } from "semantic-ui-react";
 import DataTable from 'react-data-table-component';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Categorys from "../components/Categorys";
+import CategoryManagement from "../components/CategoryManagement";
 import firebase from "../utils/firebase";
 
 function BomTables() {
@@ -12,7 +13,12 @@ function BomTables() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState(0);
+  const [lastUpdateTime, setLastUpdateTime] = useState(0);
   const navigate = useNavigate();
+
+  const CACHE_DURATION = 5 * 60 * 1000; // 5分鐘
+  const CACHE_CLEANUP_INTERVAL = 30 * 60 * 1000; // 30分鐘
 
   useEffect(() => {
     const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
@@ -26,18 +32,92 @@ function BomTables() {
       }
     });
 
-    return () => unsubscribe();
+    // 添加定期緩存清理
+    const cleanupInterval = setInterval(cleanupCache, CACHE_CLEANUP_INTERVAL);
+
+    // 添加 Firebase 實時監聽器
+    const unsubscribeBomTables = firebase.firestore().collection("bom_tables")
+      .onSnapshot(snapshot => {
+        if (snapshot.docChanges().length > 0) {
+          setLastUpdateTime(Date.now());
+        }
+      });
+
+    const unsubscribeCategories = firebase.firestore().collection("categorys")
+      .onSnapshot(snapshot => {
+        if (snapshot.docChanges().length > 0) {
+          setLastUpdateTime(Date.now());
+        }
+      });
+
+    return () => {
+      unsubscribe();
+      clearInterval(cleanupInterval);
+      unsubscribeBomTables();
+      unsubscribeCategories();
+    };
   }, [navigate]);
+
+  const cleanupCache = () => {
+    const currentTime = Date.now();
+    const cachedBomTablesTime = localStorage.getItem('cachedBomTablesTime');
+    const cachedCategoriesTime = localStorage.getItem('cachedCategoriesTime');
+
+    if (cachedBomTablesTime && currentTime - parseInt(cachedBomTablesTime) > CACHE_DURATION) {
+      localStorage.removeItem('cachedBomTables');
+      localStorage.removeItem('cachedBomTablesTime');
+    }
+
+    if (cachedCategoriesTime && currentTime - parseInt(cachedCategoriesTime) > CACHE_DURATION) {
+      localStorage.removeItem('cachedCategories');
+      localStorage.removeItem('cachedCategoriesTime');
+    }
+  };
 
   const fetchData = async () => {
     try {
-      // Fetch BOM tables
+      const currentTime = Date.now();
+      const cachedBomTablesTime = localStorage.getItem('cachedBomTablesTime');
+      const cachedCategoriesTime = localStorage.getItem('cachedCategoriesTime');
+
+      // 檢查緩存是否仍然有效，並且沒有新的更新
+      if (currentTime - lastUpdateTime < CACHE_DURATION &&
+          cachedBomTablesTime && currentTime - parseInt(cachedBomTablesTime) < CACHE_DURATION &&
+          cachedCategoriesTime && currentTime - parseInt(cachedCategoriesTime) < CACHE_DURATION) {
+        const cachedBomTables = localStorage.getItem('cachedBomTables');
+        const cachedCategories = localStorage.getItem('cachedCategories');
+        if (cachedBomTables && cachedCategories) {
+          setBomTables(JSON.parse(cachedBomTables));
+          setCategories(JSON.parse(cachedCategories));
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // 如果緩存無效或有新的更新，從 Firebase 獲取新數據
+      await Promise.all([fetchBomTables(), fetchCategories()]);
+      setLastUpdateTime(currentTime);
+    } catch (error) {
+      console.error("獲取數據時出錯:", error);
+      toast.error('獲取數據時出錯');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchBomTables = async () => {
+    try {
       const bomTablesSnapshot = await firebase.firestore().collection("bom_tables").get();
       const bomTablesData = await Promise.all(bomTablesSnapshot.docs.map(async docSnapshot => {
         const id = docSnapshot.id;
         const data = docSnapshot.data();
 
-        // Fetch referenced unitCost and name for shared materials
+        let category = data.category;
+        if (category instanceof firebase.firestore.DocumentReference) {
+          const categoryDoc = await category.get();
+          category = categoryDoc.exists ? categoryDoc.data().name : null;
+        }
+
         const items = await Promise.all(data.items.map(async item => {
           if (item.isShared) {
             if (item.unitCost instanceof firebase.firestore.DocumentReference) {
@@ -52,7 +132,6 @@ function BomTables() {
           return item;
         }));
 
-        // Calculate total cost in frontend, including tax
         const totalCost = items.reduce((sum, item) => {
           const itemCost = (parseFloat(item.quantity) || 0) * (parseFloat(item.unitCost) || 0);
           const tax = item.isTaxed ? itemCost * 0.05 : 0;
@@ -62,35 +141,65 @@ function BomTables() {
         return { 
           id, 
           ...data, 
+          category,
           items, 
           totalCost: totalCost.toFixed(2), 
           updatedByDisplayName: data.updatedBy ? data.updatedBy.displayName : '尚未更新',
           imageLoaded: false
         };
       }));
-      setBomTables(bomTablesData);
 
-      // Fetch categories
-      const categoriesSnapshot = await firebase.firestore().collection("categorys").get();
-      const categoriesData = categoriesSnapshot.docs.map(doc => doc.data());
-      setCategories(categoriesData);
+      setBomTables(bomTablesData);
+      localStorage.setItem('cachedBomTables', JSON.stringify(bomTablesData));
+      localStorage.setItem('cachedBomTablesTime', Date.now().toString());
     } catch (error) {
-      console.error("Error fetching data:", error);
-      toast.error('獲取數據時出錯');
-    } finally {
-      setIsLoading(false);
+      console.error("獲取 BOM 表格時出錯:", error);
+      toast.error('獲取 BOM 表格時出錯');
     }
   };
 
-  const filteredBomTables = selectedCategory
-    ? bomTables.filter(table => table.category === selectedCategory)
-    : bomTables;
+  const fetchCategories = async () => {
+    try {
+      const categoriesSnapshot = await firebase.firestore().collection("categorys").get();
+      const categoriesData = categoriesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name
+      }));
+      setCategories(categoriesData);
+      localStorage.setItem('cachedCategories', JSON.stringify(categoriesData));
+      localStorage.setItem('cachedCategoriesTime', Date.now().toString());
+    } catch (error) {
+      console.error("獲取類別時出錯:", error);
+      toast.error('獲取類別時出錯');
+    }
+  };
 
-  const sortedBomTables = filteredBomTables.sort((a, b) => {
-    const timeA = a.createdAt.seconds * 1000 + a.createdAt.nanoseconds / 1000000;
-    const timeB = b.createdAt.seconds * 1000 + b.createdAt.nanoseconds / 1000000;
-    return timeB - timeA;
-  });
+  const handleTabChange = (e, { activeIndex }) => {
+    setActiveTab(activeIndex);
+    if (activeIndex === 0) {
+      fetchData();
+    }
+  };
+
+  const filteredBomTables = useMemo(() => {
+    if (!selectedCategory) return bomTables;
+    return bomTables.filter(table => {
+      if (typeof table.category === 'string') {
+        return table.category === selectedCategory;
+      } else if (table.category && typeof table.category === 'object') {
+        return table.category.id === selectedCategory || table.category.name === selectedCategory;
+      }
+      return false;
+    });
+  }, [bomTables, selectedCategory]);
+
+  const sortedBomTables = useMemo(() => {
+    return filteredBomTables.sort((a, b) => {
+      const timeA = a.createdAt.seconds * 1000 + a.createdAt.nanoseconds / 1000000;
+      const timeB = b.createdAt.seconds * 1000 + b.createdAt.nanoseconds / 1000000;
+      return timeB - timeA;
+    });
+  }, [filteredBomTables]);
 
   const columns = useMemo(
     () => [
@@ -167,7 +276,7 @@ function BomTables() {
       }))
     };
     
-    console.log('Copying BOM table:', copyData); // 添加日誌
+    console.log('複製 BOM 表格:', copyData);
     sessionStorage.setItem('copyBomTableData', JSON.stringify(copyData));
     
     navigate('/new-bomtable');
@@ -179,6 +288,14 @@ function BomTables() {
         bomTable.id === id ? { ...bomTable, imageLoaded: true } : bomTable
       )
     );
+  };
+
+  const handleCategoryChange = async () => {
+    await fetchCategories();
+    if (activeTab === 0) {
+      await fetchBomTables();
+    }
+    setLastUpdateTime(Date.now());
   };
 
   const renderContent = () => {
@@ -236,6 +353,38 @@ function BomTables() {
     ));
   };
 
+  // 定義標籤頁
+  const panes = [
+    { 
+      menuItem: 'BOM 表格', 
+      render: () => 
+        <Tab.Pane>
+          <Grid>
+            <Grid.Row>
+              <Grid.Column width={2}>
+                <Categorys
+                  categories={categories}
+                  selectedCategory={selectedCategory}
+                  onSelectCategory={setSelectedCategory}
+                />
+              </Grid.Column>
+              <Grid.Column width={1}></Grid.Column>
+              <Grid.Column width={12}>
+                {renderContent()}
+              </Grid.Column>
+            </Grid.Row>
+          </Grid>
+        </Tab.Pane> 
+    },
+    { 
+      menuItem: '類別管理', 
+      render: () => 
+        <Tab.Pane>
+          <CategoryManagement onCategoryChange={handleCategoryChange} />
+        </Tab.Pane> 
+    },
+  ];
+
   if (isLoading) {
     return (
       <Dimmer active>
@@ -254,21 +403,7 @@ function BomTables() {
   }
 
   return (
-    <Grid>
-      <Grid.Row>
-        <Grid.Column width={2}>
-          <Categorys
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-          />
-        </Grid.Column>
-        <Grid.Column width={1}></Grid.Column>
-        <Grid.Column width={12}>
-          {renderContent()}
-        </Grid.Column>
-      </Grid.Row>
-    </Grid>
+    <Tab panes={panes} activeIndex={activeTab} onTabChange={handleTabChange} />
   );
 }
 
