@@ -36,16 +36,12 @@ function EditBomTable() {
           setImageUrl(data.imageUrl || '');
           setUpdateTime(data.updatedAt ? data.updatedAt.toDate() : null);
 
-          // Handle category (could be string, reference, or null)
+          // Handle category (could be string or reference)
           if (data.category) {
             if (typeof data.category === 'string') {
               setSelectedCategory(data.category);
-            } else if (data.category.path) {
-              // It's a document reference
-              const categoryDoc = await data.category.get();
-              if (categoryDoc.exists) {
-                setSelectedCategory(categoryDoc.id);
-              }
+            } else {
+              setSelectedCategory(data.category.id);
             }
           }
 
@@ -147,11 +143,6 @@ function EditBomTable() {
         updatedImageUrl = await snapshot.ref.getDownloadURL();
       }
 
-      // 保存當前選中的 localStorage
-      if (selectedCategory) {
-        localStorage.setItem('selectedCategory', selectedCategory);
-      }
-
       const currentUser = firebase.auth().currentUser;
 
       // 處理項目，區分共用料和非共用料
@@ -188,14 +179,8 @@ function EditBomTable() {
 
       toast.success('BOM 表修改成功');
       
-      // 使用 setTimeout 確保 toast 顯示後再跳轉
       setTimeout(() => {
-        navigate('/bom-tables', { 
-          state: { 
-            fromEdit: true,
-            selectedCategory: selectedCategory 
-          }
-        });
+        navigate('/bom-table');
       }, 800);
 
     } catch (error) {
@@ -257,10 +242,7 @@ function EditBomTable() {
             selection
             options={categories}
             value={selectedCategory}
-            onChange={(_, { value }) => {
-              setSelectedCategory(value);
-              localStorage.setItem('selectedCategory', value);
-            }}
+            onChange={(_, { value }) => setSelectedCategory(value)}
           />
         </Form.Field>
 
