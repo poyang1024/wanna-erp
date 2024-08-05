@@ -69,6 +69,7 @@ function Signin() {
                 navigate('/');
             }, 1500);
         } catch (error) {
+            console.log(error.code)
             switch (error.code) {
                 case 'auth/invalid-email':
                     toast.error('信箱格式錯誤');
@@ -78,6 +79,9 @@ function Signin() {
                     break;
                 case 'auth/wrong-password':
                     toast.error('密碼錯誤');
+                    break;
+                case 'auth/invalid-credential':
+                    toast.error('信箱或密碼錯誤');
                     break;
                 default:
                     toast.error('登入失敗，請稍後再試');

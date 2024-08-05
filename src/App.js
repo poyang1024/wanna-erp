@@ -11,6 +11,7 @@ import SharedMaterial from "./pages/SharedMaterials";
 import EditBomTable from "./pages/EditBomTable"
 import EditSharedMaterial from "./pages/EditSharedMaterials"
 import SharedMaterialHistory from "./pages/SharedMaterialHistory"
+import ExcelAnalysisPage from './pages/ExcelAnalysisPage';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
             <Route path="/edit-bom-table/:id" element={<EditBomTable />} />
             <Route path="/edit-shared-material/:id" element={<EditSharedMaterial />} />
             <Route path="/shared-material-history/:id" element={<SharedMaterialHistory />} />
+            <Route path="/excel-analysis" element={<ExcelAnalysisPage />} />
           </Routes>
         </div>
         <Footer />

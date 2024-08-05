@@ -6,14 +6,24 @@ import firebase from './utils/firebase';
 function Header() {
     const [user, setUser] = useState(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isUpdatingUser, setIsUpdatingUser] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
         const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
-            setUser(currentUser);
-            if (!currentUser && isLoggingOut) {
-                setIsLoggingOut(false);
-                navigate("/signin");
+            if (currentUser) {
+                // 當檢測到用戶登入時，設置一個延遲
+                setTimeout(() => {
+                    setUser(currentUser);
+                    setIsUpdatingUser(false);
+                }, 2000); // 2秒延遲，可以根據實際需求調整
+            } else {
+                setUser(null);
+                setIsUpdatingUser(false);
+                if (isLoggingOut) {
+                    setIsLoggingOut(false);
+                    navigate("/");
+                }
             }
         });
 
@@ -24,29 +34,34 @@ function Header() {
         setIsLoggingOut(true);
         try {
             await firebase.auth().signOut();
-            // 導航邏輯移到了 useEffect 中
         } catch (error) {
             console.error("Logout error:", error);
             setIsLoggingOut(false);
         }
     };
 
-    const viewButtonStyle = {
-        backgroundColor: '#f0f8ff',
-        color: '#000',
-    };
-
-    const editButtonStyle = {
-        backgroundColor: '#ffebcd',
-        color: '#000',
-    };
-
-    const viewButtonHoverStyle = {
-        backgroundColor: '#d0e8ff',
-    };
-
-    const editButtonHoverStyle = {
-        backgroundColor: '#ffd7b0',
+    const styles = {
+        viewButton: {
+            backgroundColor: '#f0f8ff',
+            color: '#000',
+        },
+        editButton: {
+            backgroundColor: '#ffebcd',
+            color: '#000',
+        },
+        viewButtonHover: {
+            backgroundColor: '#d0e8ff',
+        },
+        editButtonHover: {
+            backgroundColor: '#ffd7b0',
+        },
+        analyzeButton: {
+            backgroundColor: '#baedff',
+            color: '#000',
+        },
+        analyzeButtonHover: {
+            backgroundColor: '#73cfff',
+        }
     };
 
     const handleMouseEnter = (e, hoverStyle) => {
@@ -56,6 +71,10 @@ function Header() {
     const handleMouseLeave = (e, originalStyle) => {
         Object.assign(e.target.style, originalStyle);
     };
+
+    if (isUpdatingUser) {
+        return <Dimmer active><Loader>加載中...</Loader></Dimmer>;
+    }
 
     return (
         <>
@@ -70,38 +89,47 @@ function Header() {
                             <Menu.Item 
                                 as={Link} 
                                 to="/new-bomtable" 
-                                style={editButtonStyle} 
-                                onMouseEnter={(e) => handleMouseEnter(e, editButtonHoverStyle)}
-                                onMouseLeave={(e) => handleMouseLeave(e, editButtonStyle)}
+                                style={styles.editButton} 
+                                onMouseEnter={(e) => handleMouseEnter(e, styles.editButtonHover)}
+                                onMouseLeave={(e) => handleMouseLeave(e, styles.editButton)}
                             >
                                 建立 BOM 表
                             </Menu.Item>
                             <Menu.Item 
                                 as={Link} 
                                 to="/new-shared-material" 
-                                style={editButtonStyle} 
-                                onMouseEnter={(e) => handleMouseEnter(e, editButtonHoverStyle)}
-                                onMouseLeave={(e) => handleMouseLeave(e, editButtonStyle)}
+                                style={styles.editButton} 
+                                onMouseEnter={(e) => handleMouseEnter(e, styles.editButtonHover)}
+                                onMouseLeave={(e) => handleMouseLeave(e, styles.editButton)}
                             >
                                 建立共用料
                             </Menu.Item>
                             <Menu.Item 
                                 as={Link} 
                                 to="/bom-table" 
-                                style={viewButtonStyle} 
-                                onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
-                                onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
+                                style={styles.viewButton} 
+                                onMouseEnter={(e) => handleMouseEnter(e, styles.viewButtonHover)}
+                                onMouseLeave={(e) => handleMouseLeave(e, styles.viewButton)}
                             >
                                 查看 BOM 表
                             </Menu.Item>
                             <Menu.Item 
                                 as={Link} 
                                 to="/shared-material" 
-                                style={viewButtonStyle} 
-                                onMouseEnter={(e) => handleMouseEnter(e, viewButtonHoverStyle)}
-                                onMouseLeave={(e) => handleMouseLeave(e, viewButtonStyle)}
+                                style={styles.viewButton} 
+                                onMouseEnter={(e) => handleMouseEnter(e, styles.viewButtonHover)}
+                                onMouseLeave={(e) => handleMouseLeave(e, styles.viewButton)}
                             >
                                 查看共用料
+                            </Menu.Item>
+                            <Menu.Item 
+                                as={Link} 
+                                to="/excel-analysis" 
+                                style={styles.analyzeButton} 
+                                onMouseEnter={(e) => handleMouseEnter(e, styles.analyzeButtonHover)}
+                                onMouseLeave={(e) => handleMouseLeave(e, styles.analyzeButton)}
+                            >
+                                Excel 分析
                             </Menu.Item>
                             <Menu.Item onClick={handleLogout}>
                                 登出
