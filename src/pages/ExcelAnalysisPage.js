@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import firebase from '../utils/firebase';
+import { useNavigate } from 'react-router-dom';
+import toast, { Toaster } from 'react-hot-toast';
+import { Button } from 'semantic-ui-react';
 
 function ExcelAnalysisPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [stats, setStats] = useState(null);
   const [manualInputs, setManualInputs] = useState({
@@ -15,6 +20,11 @@ function ExcelAnalysisPage() {
   });
   const [taxInclusion, setTaxInclusion] = useState({});
   const [taxDeductionStatus, setTaxDeductionStatus] = useState({});
+  const [fileName, setFileName] = useState('');
+  const [showSaveButton, setShowSaveButton] = useState(false);
+  const handleViewSavedData = () => {
+    navigate('/saved-analysis');
+  };
 
   const chineseLabels = {
     kbGiftAverageCost: '康寶禮平均成本',
@@ -34,6 +44,9 @@ function ExcelAnalysisPage() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // 設置文件名（不包括擴展名）
+    setFileName(file.name.replace(/\.[^/.]+$/, ""));
+
     // 重置所有相關狀態
     setData([]);
     setStats(null);
@@ -51,6 +64,9 @@ function ExcelAnalysisPage() {
       calculateStats(data, manualInputs, {}, {});
     };
     reader.readAsBinaryString(file);
+
+    // 顯示儲存按鈕
+    setShowSaveButton(true);
   };
 
   const handleManualInputChange = (e) => {
@@ -64,6 +80,39 @@ function ExcelAnalysisPage() {
       calculateStats(data, manualInputs, newTaxInclusion, taxDeductionStatus);
       return newTaxInclusion;
     });
+  };
+
+  const handleSave = async () => {
+    if (!stats || !fileName) {
+      toast.error('請確保已上傳文件並設置名稱');
+      return;
+    }
+
+    try {
+      // 準備要保存的數據
+      const dataToSave = {
+        fileName: fileName,
+        stats: stats,
+        manualInputs: manualInputs,
+        taxInclusion: taxInclusion,
+        taxDeductionStatus: taxDeductionStatus,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      // 保存到 Firebase
+      await firebase.firestore().collection('excelAnalysis').add(dataToSave);
+
+      toast.success('數據已成功保存到 Firebase', {
+        duration: 3000,
+        onClose: () => {
+          // 重新載入頁面
+          window.location.reload();
+        }
+      });
+    } catch (error) {
+      console.error('保存到 Firebase 時出錯:', error);
+      toast.error('保存數據時出錯');
+    }
   };
 
   const handleTaxDeductionStatusChange = (field) => (e) => {
@@ -239,7 +288,12 @@ function ExcelAnalysisPage() {
 
   return (
     <div style={styles.excelAnalysisPage}>
+      <Toaster position="top-right" />
       <h1 style={styles.title}>訂單數據分析</h1>
+      
+      <Button onClick={handleViewSavedData} style={styles.viewButton}>
+        查看已保存的數據
+      </Button>
       
       <div style={styles.manualInputs}>
         <div style={styles.inputGroup}>
@@ -433,6 +487,21 @@ function ExcelAnalysisPage() {
           </table>
         </div>
       )}
+
+      {showSaveButton && (
+      <div style={styles.saveSection}>
+        <input
+          type="text"
+          value={fileName}
+          onChange={(e) => setFileName(e.target.value)}
+          placeholder="輸入保存名稱"
+          style={styles.input}
+        />
+        <button onClick={handleSave} style={styles.saveButton}>
+          儲存到 Firebase
+        </button>
+      </div>
+    )}
     </div>
   );
 }
@@ -506,5 +575,28 @@ export default ExcelAnalysisPage;
       borderRadius: '3px',
       border: '1px solid #ccc',
       marginTop: '5px',
+    },
+    saveSection: {
+      marginTop: '20px',
+      display: 'flex',
+      alignItems: 'center',
+    },
+    saveButton: {
+      padding: '10px 15px',
+      backgroundColor: '#4CAF50',
+      color: 'white',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      marginLeft: '10px',
+    },
+    viewButton: {
+      marginBottom: '20px',
+      backgroundColor: '#2185d0',
+      color: 'white',
+      border: 'none',
+      padding: '10px 15px',
+      borderRadius: '4px',
+      cursor: 'pointer',
     },
   };
