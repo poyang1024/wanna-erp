@@ -18,8 +18,22 @@ function ExcelAnalysisPage() {
     gift2800Cost: 0,
     gift3300Cost: 0,
   });
-  const [taxInclusion, setTaxInclusion] = useState({});
-  const [taxDeductionStatus, setTaxDeductionStatus] = useState({});
+  const [taxInclusion, setTaxInclusion] = useState({
+    averageActualAmount: true,
+    paymentFee: true,
+    cyberbizFee: true,
+    warehouseLogistics: true
+  });
+  
+  const [taxDeductionStatus, setTaxDeductionStatus] = useState({
+    averageActualAmount: 'included',
+    paymentFee: 'deductible',
+    cyberbizFee: 'deductible',
+    warehouseLogistics: 'included'
+  });
+  const shouldShowTaxOption = (key) => {
+    return ['averageActualAmount', 'paymentFee', 'cyberbizFee', 'warehouseLogistics'].includes(key);
+  };
   const [fileName, setFileName] = useState('');
   const [showSaveButton, setShowSaveButton] = useState(false);
   const handleViewSavedData = () => {
@@ -50,8 +64,6 @@ function ExcelAnalysisPage() {
     // 重置所有相關狀態
     setData([]);
     setStats(null);
-    setTaxInclusion({});
-    setTaxDeductionStatus({});
     
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -102,16 +114,16 @@ function ExcelAnalysisPage() {
       // 保存到 Firebase
       await firebase.firestore().collection('excelAnalysis').add(dataToSave);
 
-      toast.success('數據已成功保存到 Firebase', {
-        duration: 3000,
-        onClose: () => {
-          // 重新載入頁面
-          window.location.reload();
-        }
-      });
+      toast.success('數據已成功保存，等待重整頁面中'),{
+        duration: 1000,
+      };
+      setTimeout(() => {
+        // 重新載入頁面
+        window.location.reload();
+      }, 1000);
     } catch (error) {
-      console.error('保存到 Firebase 時出錯:', error);
-      toast.error('保存數據時出錯');
+      console.error('儲存數據時出錯:', error);
+      toast.error('儲存數據時出錯');
     }
   };
 
@@ -385,7 +397,7 @@ function ExcelAnalysisPage() {
             <tbody>
               <tr style={styles.tableHeader}>
                 <th style={styles.tableCell}>欄位</th>
-                <th style={styles.tableCell}>數值</th>
+                <th style={styles.tableCell}>數據</th>
               </tr>
               <tr style={styles.tableRow}>
                 <td style={styles.tableCell}>總訂單數</td>
@@ -419,15 +431,9 @@ function ExcelAnalysisPage() {
                 <td style={styles.tableCell}>折扣前平均訂單金額</td>
                 <td style={styles.tableCell}>{stats.averagePreDiscountAmount.toFixed(2)} 元</td>
               </tr>
-              {/* <tr style={styles.tableRow}>
-                <td style={styles.tableCell}>平均實收訂單金額</td>
-                <td style={styles.tableCell}>{stats.averageActualAmount.toFixed(2)} 元</td>
-              </tr> */}
               {Object.entries(stats).map(([key, value], index) => {
-                if (typeof value === 'number' && 
-                    (key.endsWith('AverageCost') || 
-                     ['averageActualAmount', 'paymentFee', 'cyberbizFee', 'warehouseLogistics'].includes(key))) {
-                  const chineseLabel = chineseLabels[key] || key;
+                const chineseLabel = chineseLabels[key] || key;
+                if (['averageActualAmount', 'paymentFee', 'cyberbizFee', 'warehouseLogistics'].includes(key)) {
                   return (
                     <React.Fragment key={key}>
                       <tr style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlternate}>
@@ -437,7 +443,7 @@ function ExcelAnalysisPage() {
                           <div style={styles.checkboxGroup}>
                             <input
                               type="checkbox"
-                              checked={taxInclusion[key] || false}
+                              checked={taxInclusion[key]}
                               onChange={handleTaxInclusionChange(key)}
                               style={styles.checkbox}
                             />
@@ -451,7 +457,7 @@ function ExcelAnalysisPage() {
                           <td style={styles.tableCell}>
                             {(value * 0.05).toFixed(2)} 元
                             <select
-                              value={taxDeductionStatus[key] || ''}
+                              value={taxDeductionStatus[key]}
                               onChange={handleTaxDeductionStatusChange(key)}
                               style={styles.select}
                             >
@@ -464,17 +470,18 @@ function ExcelAnalysisPage() {
                       )}
                     </React.Fragment>
                   );
+                } else if (key.endsWith('AverageCost')) {
+                  return (
+                    <tr key={key} style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlternate}>
+                      <td style={styles.tableCell}>{chineseLabel}</td>
+                      <td style={styles.tableCell}>
+                        {value.toFixed(2)} 元
+                      </td>
+                    </tr>
+                  );
                 }
                 return null;
               })}
-              {/* <tr style={styles.tableRow}>
-                <td style={styles.tableCell}>金流抽成2.2%</td>
-                <td style={styles.tableCell}>{stats.paymentFee.toFixed(2)} 元</td>
-              </tr>
-              <tr style={styles.tableRowAlternate}>
-                <td style={styles.tableCell}>Cyberbiz抽成3%</td>
-                <td style={styles.tableCell}>{stats.cyberbizFee.toFixed(2)} 元</td>
-              </tr> */}
               <tr style={styles.tableRow}>
                 <td style={styles.tableCell}>成本TTL(含稅)</td>
                 <td style={styles.tableCell}>{stats.totalCostWithTax.toFixed(2)} 元</td>
@@ -494,11 +501,11 @@ function ExcelAnalysisPage() {
           type="text"
           value={fileName}
           onChange={(e) => setFileName(e.target.value)}
-          placeholder="輸入保存名稱"
+          placeholder="輸入名稱"
           style={styles.input}
         />
         <button onClick={handleSave} style={styles.saveButton}>
-          儲存到 Firebase
+          儲存
         </button>
       </div>
     )}
