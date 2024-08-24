@@ -57,7 +57,7 @@ function BomTables() {
       unsubscribeCategories();
     };
   }, [navigate]);
-
+  
   const cleanupCache = () => {
     const currentTime = Date.now();
     const cachedBomTablesTime = localStorage.getItem('cachedBomTablesTime');
@@ -395,9 +395,9 @@ function BomTables() {
 
   if (!isAuthenticated) {
     return (
-      <Message warning>
+      <Message error>
         <Message.Header>需要登入</Message.Header>
-        <p>您需要登入才能查看此頁面。請 <Button as={Link} to="/signin">登入</Button></p>
+        <p>您需要登入才能查看此頁面。請 &nbsp;&nbsp; <Button color="red" as={Link} to="/signin">登入</Button></p>
       </Message>
     );
   }

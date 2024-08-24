@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import firebase from '../utils/firebase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
-import { Button } from 'semantic-ui-react';
+import { Button, Tab, Message } from 'semantic-ui-react';
+import ProfitAnalysis from '../components/ProfitAnalysis';
 
 function ExcelAnalysisPage() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [data, setData] = useState([]);
   const [stats, setStats] = useState(null);
   const [manualInputs, setManualInputs] = useState({
@@ -24,21 +27,15 @@ function ExcelAnalysisPage() {
     cyberbizFee: true,
     warehouseLogistics: true
   });
-  
   const [taxDeductionStatus, setTaxDeductionStatus] = useState({
     averageActualAmount: 'included',
     paymentFee: 'deductible',
     cyberbizFee: 'deductible',
     warehouseLogistics: 'included'
   });
-  const shouldShowTaxOption = (key) => {
-    return ['averageActualAmount', 'paymentFee', 'cyberbizFee', 'warehouseLogistics'].includes(key);
-  };
   const [fileName, setFileName] = useState('');
   const [showSaveButton, setShowSaveButton] = useState(false);
-  const handleViewSavedData = () => {
-    navigate('/saved-analysis');
-  };
+  const [activeTab, setActiveTab] = useState(0);
 
   const chineseLabels = {
     kbGiftAverageCost: '康寶禮平均成本',
@@ -54,128 +51,43 @@ function ExcelAnalysisPage() {
     warehouseLogistics: '倉儲+物流',
   };
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    // 設置文件名（不包括擴展名）
-    setFileName(file.name.replace(/\.[^/.]+$/, ""));
-
-    // 重置所有相關狀態
-    setData([]);
-    setStats(null);
-    
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
-      setData(data);
-      calculateStats(data, manualInputs, {}, {});
-    };
-    reader.readAsBinaryString(file);
-
-    // 顯示儲存按鈕
-    setShowSaveButton(true);
-  };
-
-  const handleManualInputChange = (e) => {
-    const { name, value } = e.target;
-    setManualInputs(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
-  };
-
-  const handleTaxInclusionChange = (field) => (e) => {
-    setTaxInclusion(prev => {
-      const newTaxInclusion = { ...prev, [field]: e.target.checked };
-      calculateStats(data, manualInputs, newTaxInclusion, taxDeductionStatus);
-      return newTaxInclusion;
+  useEffect(() => {
+    const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+      setUser(user);
+      setLoading(false);
     });
-  };
 
-  const handleSave = async () => {
-    if (!stats || !fileName) {
-      toast.error('請確保已上傳文件並設置名稱');
-      return;
-    }
+    return () => unsubscribe();
+  }, []);
 
-    try {
-      // 準備要保存的數據
-      const dataToSave = {
-        fileName: fileName,
-        stats: stats,
-        manualInputs: manualInputs,
-        taxInclusion: taxInclusion,
-        taxDeductionStatus: taxDeductionStatus,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      // 保存到 Firebase
-      await firebase.firestore().collection('excelAnalysis').add(dataToSave);
-
-      toast.success('數據已成功保存，等待重整頁面中'),{
-        duration: 1000,
-      };
-      setTimeout(() => {
-        // 重新載入頁面
-        window.location.reload();
-      }, 1000);
-    } catch (error) {
-      console.error('儲存數據時出錯:', error);
-      toast.error('儲存數據時出錯');
-    }
-  };
-
-  const handleTaxDeductionStatusChange = (field) => (e) => {
-    setTaxDeductionStatus(prev => {
-      const newTaxDeductionStatus = { ...prev, [field]: e.target.value };
-      calculateStats(data, manualInputs, taxInclusion, newTaxDeductionStatus);
-      return newTaxDeductionStatus;
-    });
-  };
-
-  const excelDateToJSDate = (excelDate) => {
-    // Excel 的日期系統從 1900 年 1 月 1 日開始
-    const daysSince1900 = excelDate - 1; // 減 1 是因為 Excel 將 1900/1/1 視為 1
+  const excelDateToJSDate = useCallback((excelDate) => {
+    const daysSince1900 = excelDate - 1;
     const millisecondsSince1900 = daysSince1900 * 24 * 60 * 60 * 1000;
-    const date1900 = new Date(Date.UTC(1900, 0, 1)); // UTC 時間 1900 年 1 月 1 日
+    const date1900 = new Date(Date.UTC(1900, 0, 1));
   
     let jsDate = new Date(date1900.getTime() + millisecondsSince1900);
   
-    // 調整 Excel 的 1900 年閏年錯誤
-    if (excelDate > 60) { // 60 是 Excel 中的 1900 年 2 月 29 日（實際上不存在）
+    if (excelDate > 60) {
       jsDate.setUTCDate(jsDate.getUTCDate() - 1);
     }
   
-    // 調整為本地時區（假設是 UTC+8）
     jsDate = new Date(jsDate.getTime() + 8 * 60 * 60 * 1000);
-  
-    // 設置時間為當天的午夜（本地時間）
     jsDate.setHours(0, 0, 0, 0);
-  
-    // console.log(`Excel date ${excelDate} converted to JS date: ${jsDate.toISOString()}`);
     
     return jsDate;
-  };
+  }, []);
   
-  const isThursday = (excelDate) => {
-    // console.log(`Checking if date is Thursday: ${excelDate}`);
-    
+  const isThursday = useCallback((excelDate) => {
     if (typeof excelDate !== 'number' || isNaN(excelDate)) {
-      // console.log(`Invalid Excel date format: ${excelDate}`);
       return false;
     }
   
     const date = excelDateToJSDate(excelDate);
     const dayOfWeek = date.getDay();
-    const isThurs = dayOfWeek === 4;
-    // console.log(`Date: ${date.toISOString()}, Day of week: ${dayOfWeek}, Is Thursday: ${isThurs}`);
-    return isThurs;
-  };
+    return dayOfWeek === 4;
+  }, [excelDateToJSDate]);
 
-  const calculateStats = (data, manualInputs, taxInclusion, taxDeductionStatus) => {
-
+  const calculateStats = useCallback((data, manualInputs, taxInclusion, taxDeductionStatus) => {
     if (!manualInputs) {
       console.error('manualInputs is undefined');
       return;
@@ -200,16 +112,11 @@ function ExcelAnalysisPage() {
         if (row[20] && row[20].includes('康熙')) khGiftOrders++;
         if (row[28]) kolOrders++;
   
-        // 改進的週四訂單判斷邏輯
         const excelDate = row[0];
-        // console.log(`Row ${i}: Date string:`, orderDateStr);
 
         if (excelDate && !isNaN(excelDate)) {
           if (isThursday(excelDate)) {
             thursdayOrders++;
-            // console.log(`Row ${i}: Thursday order found:`, orderDateStr);
-          } else {
-            // console.log(`Row ${i}: Not a Thursday order:`, orderDateStr);
           }
         } else {
           console.log(`Row ${i}: Invalid or missing date`);
@@ -228,8 +135,6 @@ function ExcelAnalysisPage() {
   
     const averagePreDiscountAmount = totalPreDiscountAmount / totalOrders;
     const averageActualAmount = totalActualAmount / totalOrders;
-
-    // console.log('Total Thursday orders:', thursdayOrders);
   
     const calculatedStats = {
       totalOrders,
@@ -253,7 +158,6 @@ function ExcelAnalysisPage() {
       warehouseLogistics: manualInputs.warehouseLogistics || 0,
     };
   
-    // Calculate tax for all relevant fields
     Object.keys(calculatedStats).forEach(key => {
       if (typeof calculatedStats[key] === 'number' && 
           (key.endsWith('AverageCost') || 
@@ -270,7 +174,6 @@ function ExcelAnalysisPage() {
       }
     });
   
-    // Calculate total cost and order cost rate
     const totalCost = calculatedStats.paymentFee + calculatedStats.cyberbizFee +
                       calculatedStats.kbGiftAverageCost + calculatedStats.khGiftAverageCost +
                       calculatedStats.thursdayAverageCost + calculatedStats.gift2800AverageCost +
@@ -289,19 +192,95 @@ function ExcelAnalysisPage() {
     calculatedStats.orderCostRate = calculatedStats.totalCostWithTax / calculatedStats.averagePreDiscountAmount;
   
     setStats(calculatedStats);
-  };
+  }, [isThursday]);
 
   useEffect(() => {
     if (data.length > 0) {
       calculateStats(data, manualInputs, taxInclusion, taxDeductionStatus);
     }
-  }, [data, manualInputs, taxInclusion, taxDeductionStatus]);
+  }, [data, manualInputs, taxInclusion, taxDeductionStatus, calculateStats]);
 
+  const handleFileUpload = useCallback((e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  return (
+    setFileName(file.name.replace(/\.[^/.]+$/, ""));
+    setData([]);
+    setStats(null);
+    
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const bstr = evt.target.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      setData(data);
+      calculateStats(data, manualInputs, taxInclusion, taxDeductionStatus);
+    };
+    reader.readAsBinaryString(file);
+
+    setShowSaveButton(true);
+  }, [manualInputs, taxInclusion, taxDeductionStatus, calculateStats]);
+
+  const handleManualInputChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setManualInputs(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+  }, []);
+
+  const handleTaxInclusionChange = useCallback((field) => (e) => {
+    setTaxInclusion(prev => {
+      const newTaxInclusion = { ...prev, [field]: e.target.checked };
+      calculateStats(data, manualInputs, newTaxInclusion, taxDeductionStatus);
+      return newTaxInclusion;
+    });
+  }, [data, manualInputs, taxDeductionStatus, calculateStats]);
+
+  const handleTaxDeductionStatusChange = useCallback((field) => (e) => {
+    setTaxDeductionStatus(prev => {
+      const newTaxDeductionStatus = { ...prev, [field]: e.target.value };
+      calculateStats(data, manualInputs, taxInclusion, newTaxDeductionStatus);
+      return newTaxDeductionStatus;
+    });
+  }, [data, manualInputs, taxInclusion, calculateStats]);
+
+  const handleSave = useCallback(async () => {
+    if (!stats || !fileName) {
+      toast.error('請確保已上傳文件並設置名稱');
+      return;
+    }
+
+    try {
+      const dataToSave = {
+        fileName: fileName,
+        stats: stats,
+        manualInputs: manualInputs,
+        taxInclusion: taxInclusion,
+        taxDeductionStatus: taxDeductionStatus,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      await firebase.firestore().collection('excelAnalysis').add(dataToSave);
+
+      toast.success('數據已成功保存，等待重整頁面中', {
+        duration: 1000,
+      });
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      console.error('儲存數據時出錯:', error);
+      toast.error('儲存數據時出錯');
+    }
+  }, [stats, fileName, manualInputs, taxInclusion, taxDeductionStatus]);
+
+  const handleViewSavedData = useCallback(() => {
+    navigate('/saved-analysis');
+  }, [navigate]);
+
+  const renderOrderCostAnalysis = () => (
     <div style={styles.excelAnalysisPage}>
-      <Toaster position="top-right" />
-      <h1 style={styles.title}>訂單數據分析</h1>
+      <h1 style={styles.title}>訂單成本率分析</h1>
       
       <Button onClick={handleViewSavedData} style={styles.viewButton}>
         查看已保存的數據
@@ -380,7 +359,7 @@ function ExcelAnalysisPage() {
         </div>
       </div>
       <div>
-      <h3 style={styles.notificationtext}>請先填寫完上面的數據後再匯入資料</h3>
+        <h3 style={styles.notificationtext}>請先填寫完上面的數據後再匯入資料</h3>
         <input 
           type="file" 
           onChange={handleFileUpload} 
@@ -388,7 +367,6 @@ function ExcelAnalysisPage() {
           style={styles.fileInput}
         />
       </div>
-      
       
       {stats && (
         <div style={styles.stats}>
@@ -455,7 +433,7 @@ function ExcelAnalysisPage() {
                         <tr style={index % 2 === 0 ? styles.tableRowAlternate : styles.tableRow}>
                           <td style={styles.tableCell}>{chineseLabel}稅金 (5%)</td>
                           <td style={styles.tableCell}>
-                            {(value * 0.05).toFixed(2)} 元
+                            {(value * 0.05).toFixed(2)} 元 &nbsp;&nbsp;
                             <select
                               value={taxDeductionStatus[key]}
                               onChange={handleTaxDeductionStatusChange(key)}
@@ -496,114 +474,144 @@ function ExcelAnalysisPage() {
       )}
 
       {showSaveButton && (
-      <div style={styles.saveSection}>
-        <input
-          type="text"
-          value={fileName}
-          onChange={(e) => setFileName(e.target.value)}
-          placeholder="輸入名稱"
-          style={styles.input}
-        />
-        <button onClick={handleSave} style={styles.saveButton}>
-          儲存
-        </button>
-      </div>
-    )}
+        <div style={styles.saveSection}>
+          <input
+            type="text"
+            value={fileName}
+            onChange={(e) => setFileName(e.target.value)}
+            placeholder="輸入名稱"
+            style={styles.input}
+          />
+          <button onClick={handleSave} style={styles.saveButton}>
+            儲存
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderProfitAnalysis = () => <ProfitAnalysis />;
+
+  const panes = [
+    { menuItem: '訂單成本率分析', render: () => <Tab.Pane>{renderOrderCostAnalysis()}</Tab.Pane> },
+    { menuItem: '毛利分析', render: () => <Tab.Pane>{renderProfitAnalysis()}</Tab.Pane> },
+  ];
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return (
+      <Message error>
+        <Message.Header>需要登入</Message.Header>
+        <p>您需要登入才能查看此頁面。請 &nbsp;&nbsp; <Button color="red" as={Link} to="/signin">登入</Button></p>
+      </Message>
+    );
+  }
+
+  return (
+    <div>
+      <Toaster position="top-right" />
+      <Tab 
+        panes={panes} 
+        activeIndex={activeTab}
+        onTabChange={(e, { activeIndex }) => setActiveTab(activeIndex)}
+      />
     </div>
   );
 }
 
 export default ExcelAnalysisPage;
 
-
-  // 樣式定義
-  const styles = {
-    notificationtext:{
-      color:"red"
-    },
-    excelAnalysisPage: {
-      padding: '20px',
-      fontFamily: 'Arial, sans-serif',
-    },
-    title: {
-      color: '#333',
-      marginBottom: '20px',
-    },
-    fileInput: {
-      marginBottom: '20px',
-    },
-    manualInputs: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(2, 1fr)',
-      gap: '10px',
-      marginBottom: '20px',
-    },
-    inputGroup: {
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    label: {
-      marginBottom: '5px',
-    },
-    input: {
-      padding: '5px',
-      borderRadius: '3px',
-      border: '1px solid #ccc',
-    },
-    stats: {
-      marginTop: '20px',
-    },
-    table: {
-      width: '100%',
-      borderCollapse: 'collapse',
-      marginTop: '20px',
-    },
-    tableCell: {
-      border: '1px solid #ddd',
-      padding: '8px',
-      textAlign: 'left',
-    },
-    tableRow: {
-      backgroundColor: '#f2f2f2',
-    },
-    tableRowAlternate: {
-      backgroundColor: '#ffffff',
-    },
-    checkboxGroup: {
-      display: 'flex',
-      alignItems: 'center',
-      marginTop: '5px',
-    },
-    checkbox: {
-      marginRight: '5px',
-    },
-    select: {
-      padding: '5px',
-      borderRadius: '3px',
-      border: '1px solid #ccc',
-      marginTop: '5px',
-    },
-    saveSection: {
-      marginTop: '20px',
-      display: 'flex',
-      alignItems: 'center',
-    },
-    saveButton: {
-      padding: '10px 15px',
-      backgroundColor: '#4CAF50',
-      color: 'white',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      marginLeft: '10px',
-    },
-    viewButton: {
-      marginBottom: '20px',
-      backgroundColor: '#2185d0',
-      color: 'white',
-      border: 'none',
-      padding: '10px 15px',
-      borderRadius: '4px',
-      cursor: 'pointer',
-    },
-  };
+// 樣式定義
+const styles = {
+  notificationtext: {
+    color: "red"
+  },
+  excelAnalysisPage: {
+    padding: '20px',
+    fontFamily: 'Arial, sans-serif',
+  },
+  title: {
+    color: '#333',
+    marginBottom: '20px',
+  },
+  fileInput: {
+    marginBottom: '20px',
+  },
+  manualInputs: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '10px',
+    marginBottom: '20px',
+  },
+  inputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  label: {
+    marginBottom: '5px',
+  },
+  input: {
+    padding: '5px',
+    borderRadius: '3px',
+    border: '1px solid #ccc',
+  },
+  stats: {
+    marginTop: '20px',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    marginTop: '20px',
+  },
+  tableCell: {
+    border: '1px solid #ddd',
+    padding: '8px',
+    textAlign: 'left',
+  },
+  tableRow: {
+    backgroundColor: '#f2f2f2',
+  },
+  tableRowAlternate: {
+    backgroundColor: '#ffffff',
+  },
+  checkboxGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    marginTop: '5px',
+  },
+  checkbox: {
+    marginRight: '5px',
+  },
+  select: {
+    padding: '5px',
+    borderRadius: '3px',
+    border: '1px solid #ccc',
+    marginTop: '5px',
+  },
+  saveSection: {
+    marginTop: '20px',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  saveButton: {
+    padding: '10px 15px',
+    backgroundColor: '#4CAF50',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginLeft: '10px',
+  },
+  viewButton: {
+    marginBottom: '20px',
+    backgroundColor: '#2185d0',
+    color: 'white',
+    border: 'none',
+    padding: '10px 15px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+};

@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import firebase from '../utils/firebase';
-import { Container, Header, Table, Loader, Button, Confirm } from 'semantic-ui-react';
+import { Container, Header, Table, Loader, Button, Confirm, Message } from 'semantic-ui-react';
 import toast, { Toaster } from 'react-hot-toast';
 
 function SavedAnalysisPage() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [savedData, setSavedData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  const fetchSavedData = async () => {
+  const fetchSavedData = useCallback(async () => {
     try {
       const snapshot = await firebase.firestore().collection('excelAnalysis').orderBy('createdAt', 'desc').get();
       const data = snapshot.docs.map(doc => ({
@@ -24,18 +27,26 @@ function SavedAnalysisPage() {
       toast.error('獲取數據時出錯');
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchSavedData();
   }, []);
 
-  const handleDelete = (item) => {
+  useEffect(() => {
+    const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+      setUser(user);
+      setLoading(false);
+      if (user) {
+        fetchSavedData();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [fetchSavedData]);
+
+  const handleDelete = useCallback((item) => {
     setItemToDelete(item);
     setConfirmOpen(true);
-  };
+  }, []);
 
-  const confirmDelete = async () => {
+  const confirmDelete = useCallback(async () => {
     if (itemToDelete) {
       try {
         await firebase.firestore().collection('excelAnalysis').doc(itemToDelete.id).delete();
@@ -48,10 +59,19 @@ function SavedAnalysisPage() {
     }
     setConfirmOpen(false);
     setItemToDelete(null);
-  };
+  }, [itemToDelete, fetchSavedData]);
 
   if (loading) {
     return <Loader active>Loading...</Loader>;
+  }
+
+  if (!user) {
+    return (
+      <Message error>
+        <Message.Header>需要登入</Message.Header>
+        <p>您需要登入才能查看此頁面。請 &nbsp;&nbsp; <Button color="red" as={Link} to="/signin">登入</Button></p>
+      </Message>
+    );
   }
 
   return (
