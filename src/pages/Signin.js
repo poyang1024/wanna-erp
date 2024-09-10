@@ -13,44 +13,63 @@ function Signin() {
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        const checkLoginStatus = () => {
-            const lastLogoutTime = localStorage.getItem('lastLogoutTime');
-            const currentTime = new Date().getTime();
-            
-            if (lastLogoutTime && currentTime - parseInt(lastLogoutTime) <= 30000) {
-                // 如果在30秒內重新打開頁面，嘗試恢復登入狀態
-                firebase.auth().onAuthStateChanged((user) => {
-                    if (user) {
-                        navigate('/bom-table');
-                    }
+        let inactivityTimer;
+        let tokenRefreshInterval;
+
+        const resetInactivityTimer = () => {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(handleInactivity, 2 * 60 * 60 * 1000); // 2小時無活動自動登出
+        };
+
+        const handleInactivity = () => {
+            firebase.auth().signOut().then(() => {
+                toast.info('由於長時間無活動，您已被登出', {
+                    position: "top-center",
+                    autoClose: 3000,
                 });
-            } else if (lastLogoutTime) {
-                // 如果超過30秒，確保用戶已登出
-                firebase.auth().signOut();
-                localStorage.removeItem('lastLogoutTime');
+                navigate('/signin');
+            });
+        };
+
+        const refreshToken = async () => {
+            const user = firebase.auth().currentUser;
+            if (user) {
+                try {
+                    await user.getIdToken(true);
+                    console.log('Token refreshed');
+                } catch (error) {
+                    console.error('Failed to refresh token:', error);
+                }
             }
         };
 
-        checkLoginStatus();
+        const setupTokenRefresh = () => {
+            tokenRefreshInterval = setInterval(refreshToken, 55 * 60 * 1000); // 每55分鐘刷新一次token
+        };
 
         const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
             if (user) {
-                user.getIdToken(true).then(() => {
-                    setTimeout(() => {
-                        firebase.auth().signOut().then(() => {
-                            localStorage.setItem('lastLogoutTime', new Date().getTime().toString());
-                            toast.info('登入已過期，請重新登入', {
-                                position: "top-center",
-                                autoClose: 3000,
-                            });
-                            navigate('/signin');
-                        });
-                    }, 10 * 60 * 1000); // 10 分鐘後登出
+                resetInactivityTimer();
+                setupTokenRefresh();
+
+                // 添加活動監聽器
+                ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+                    document.addEventListener(event, resetInactivityTimer);
                 });
+            } else {
+                clearTimeout(inactivityTimer);
+                clearInterval(tokenRefreshInterval);
             }
         });
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+            clearTimeout(inactivityTimer);
+            clearInterval(tokenRefreshInterval);
+            ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+                document.removeEventListener(event, resetInactivityTimer);
+            });
+        };
     }, [navigate]);
 
     async function onSubmit(e) {
