@@ -224,11 +224,11 @@ function BomTables() {
         selector: row => parseFloat(row.unitCost).toFixed(2),
         sortable: true,
       },
-      {
-        name: '是否含稅',
-        selector: row => row.isTaxed ? '是' : '否',
-        sortable: true,
-      },
+      // {
+      //   name: '是否含稅',
+      //   selector: row => row.isTaxed ? '是' : '否',
+      //   sortable: true,
+      // },
       {
         name: '稅金',
         selector: row => row.isTaxed ? (parseFloat(row.quantity) * parseFloat(row.unitCost) * 0.05).toFixed(2) : '0.00',
@@ -343,7 +343,7 @@ function BomTables() {
           striped
           responsive
         />
-        <p style={{ marginTop: '1em', fontWeight: 'bold' }}>總成本 (含稅): {bomTable.totalCost}</p>
+        <p style={{ marginTop: '1em', fontWeight: 'bold' }}>總成本 (未稅): {bomTable.totalCost}</p>
         <p style={{ marginTop: '1em', fontWeight: 'bold' }}>表格建立日期 / 時間: <span style={{ color: 'gray' }}>{new Date(bomTable.createdAt.seconds * 1000 + bomTable.createdAt.nanoseconds / 1000000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</span></p>
         {bomTable.updatedAt && (
           <p style={{ marginTop: '0.5em', fontWeight: 'bold' }}>上次更新時間: <span style={{ color: 'gray' }}>{new Date(bomTable.updatedAt.seconds * 1000 + bomTable.updatedAt.nanoseconds / 1000000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}</span></p>

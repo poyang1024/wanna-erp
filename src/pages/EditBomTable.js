@@ -260,7 +260,7 @@ function EditBomTable() {
               <Table.HeaderCell>項目名稱</Table.HeaderCell>
               <Table.HeaderCell style={{ width: '120px' }}>數量</Table.HeaderCell>
               <Table.HeaderCell>單位成本</Table.HeaderCell>
-              <Table.HeaderCell>是否含稅</Table.HeaderCell>
+              <Table.HeaderCell>是否含稅 (停用)</Table.HeaderCell>
               <Table.HeaderCell>稅金</Table.HeaderCell>
               <Table.HeaderCell>小計 (含稅)</Table.HeaderCell>
               <Table.HeaderCell>操作</Table.HeaderCell>
@@ -314,6 +314,7 @@ function EditBomTable() {
                   <Form.Checkbox
                     checked={item.isTaxed}
                     onChange={(_, { checked }) => handleItemChange(index, 'isTaxed', checked)}
+                    disabled={true} // 添加此行以禁用該複選框
                   />
                 </Table.Cell>
                 <Table.Cell>
@@ -338,7 +339,7 @@ function EditBomTable() {
           <Table.Footer>
             <Table.Row>
               <Table.HeaderCell colSpan="6" textAlign="right">
-                總成本 (含稅)
+                總成本 (未稅)
               </Table.HeaderCell>
               <Table.HeaderCell colSpan="2">
                 {totalCost.toFixed(2)}

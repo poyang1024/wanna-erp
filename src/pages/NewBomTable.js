@@ -320,7 +320,7 @@ function NewBOMTable() {
                                 <Table.HeaderCell>項目名稱</Table.HeaderCell>
                                 <Table.HeaderCell>數量</Table.HeaderCell>
                                 <Table.HeaderCell>單位成本</Table.HeaderCell>
-                                <Table.HeaderCell>是否含稅</Table.HeaderCell>
+                                <Table.HeaderCell>是否含稅 (停用)</Table.HeaderCell>
                                 <Table.HeaderCell>稅金</Table.HeaderCell>
                                 <Table.HeaderCell>小計</Table.HeaderCell>
                                 <Table.HeaderCell>操作</Table.HeaderCell>
@@ -377,6 +377,7 @@ function NewBOMTable() {
                                         <Form.Checkbox
                                             checked={item.isTaxed}
                                             onChange={(_, { checked }) => updateItem(index, 'isTaxed', checked)}
+                                            disabled={true} // 添加此行以禁用該複選框
                                         />
                                     </Table.Cell>
                                     <Table.Cell>
