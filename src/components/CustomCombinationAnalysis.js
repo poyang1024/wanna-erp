@@ -65,6 +65,7 @@ const CustomCombinationAnalysis = () => {
           return {
             ...product,
             name: bomData.tableName,
+            productCode: bomData.productCode || '無料號',
             cost: cost
           };
         }));
@@ -110,7 +111,7 @@ const CustomCombinationAnalysis = () => {
         .get();
       const productsData = snapshot.docs.map(doc => ({
         key: doc.id,
-        text: doc.data().tableName,
+        text: `${doc.data().productCode || '無料號'} - ${doc.data().tableName}`,
         value: doc.id
       }));
       setProductsByCategory(prev => ({
@@ -251,7 +252,7 @@ const CustomCombinationAnalysis = () => {
               <Table.Cell>
                 {combination.products.map((product, index) => (
                   <div key={index}>
-                    {product.name} (x{product.quantity}) - ${product.cost.toFixed(2)}
+                    {product.productCode} - {product.name} (x{product.quantity}) - ${product.cost.toFixed(2)}
                   </div>
                 ))}
               </Table.Cell>
