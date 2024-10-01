@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button, Tab, Message } from 'semantic-ui-react';
 import ProfitAnalysis from '../components/ProfitAnalysis';
+import CustomCombinationAnalysis from '../components/CustomCombinationAnalysis';
 
 function ExcelAnalysisPage() {
   const navigate = useNavigate();
@@ -492,9 +493,12 @@ function ExcelAnalysisPage() {
 
   const renderProfitAnalysis = () => <ProfitAnalysis />;
 
+  const renderCustomCombinationAnalysis = () => <CustomCombinationAnalysis />;
+
   const panes = [
     { menuItem: '訂單成本率分析', render: () => <Tab.Pane>{renderOrderCostAnalysis()}</Tab.Pane> },
     { menuItem: '毛利分析', render: () => <Tab.Pane>{renderProfitAnalysis()}</Tab.Pane> },
+    { menuItem: '自定義組合分析', render: () => <Tab.Pane>{renderCustomCombinationAnalysis()}</Tab.Pane> },
   ];
 
   if (loading) {
