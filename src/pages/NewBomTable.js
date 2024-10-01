@@ -321,7 +321,7 @@ function NewBOMTable() {
                                 <Table.HeaderCell>數量</Table.HeaderCell>
                                 <Table.HeaderCell>單位成本</Table.HeaderCell>
                                 <Table.HeaderCell>是否含稅 (停用)</Table.HeaderCell>
-                                <Table.HeaderCell>稅金</Table.HeaderCell>
+                                <Table.HeaderCell>稅金 (停用)</Table.HeaderCell>
                                 <Table.HeaderCell>小計</Table.HeaderCell>
                                 <Table.HeaderCell>操作</Table.HeaderCell>
                             </Table.Row>

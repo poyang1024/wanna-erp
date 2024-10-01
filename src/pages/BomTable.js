@@ -230,12 +230,12 @@ function BomTables() {
       //   sortable: true,
       // },
       {
-        name: '稅金',
+        name: '稅金(停用)',
         selector: row => row.isTaxed ? (parseFloat(row.quantity) * parseFloat(row.unitCost) * 0.05).toFixed(2) : '0.00',
         sortable: true,
       },
       {
-        name: '小計 (含稅)',
+        name: '小計',
         selector: row => {
           const subtotal = parseFloat(row.quantity) * parseFloat(row.unitCost);
           const tax = row.isTaxed ? subtotal * 0.05 : 0;
