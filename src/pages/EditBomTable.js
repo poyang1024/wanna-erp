@@ -278,9 +278,10 @@ function EditBomTable() {
                 <Table.Cell>
                   {item.isShared ? (
                     <Dropdown
-                      placeholder='選擇共用料'
+                      placeholder='搜尋或選擇共用料'
                       fluid
                       selection
+                      search
                       options={sharedMaterials}
                       value={item.materialRef}
                       onChange={(_, { value }) => handleItemChange(index, 'name', value)}
