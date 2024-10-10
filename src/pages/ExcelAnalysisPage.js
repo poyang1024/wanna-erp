@@ -497,7 +497,7 @@ function ExcelAnalysisPage() {
 
   const panes = [
     { menuItem: '訂單成本率分析', render: () => <Tab.Pane>{renderOrderCostAnalysis()}</Tab.Pane> },
-    { menuItem: '毛利分析', render: () => <Tab.Pane>{renderProfitAnalysis()}</Tab.Pane> },
+    { menuItem: '利潤分析', render: () => <Tab.Pane>{renderProfitAnalysis()}</Tab.Pane> },
     { menuItem: '自定義組合分析', render: () => <Tab.Pane>{renderCustomCombinationAnalysis()}</Tab.Pane> },
   ];
 

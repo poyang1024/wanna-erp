@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import Categorys from "../components/Categorys";
 import CategoryManagement from "../components/CategoryManagement";
 import firebase from "../utils/firebase";
+// import styled from 'styled-components';
 
 function BomTables() {
   const [bomTables, setBomTables] = useState([]);
@@ -19,6 +20,14 @@ function BomTables() {
 
   const CACHE_DURATION = 5 * 60 * 1000; // 5分鐘
   const CACHE_CLEANUP_INTERVAL = 30 * 60 * 1000; // 30分鐘
+
+  // 新增的樣式組件
+  // const StickyColumn = styled(Grid.Column)`
+  // position: sticky !important;
+  // top: 20px;
+  // height: calc(100vh - 40px);
+  // overflow-y: auto;
+  // `;
 
   useEffect(() => {
     const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
@@ -361,6 +370,7 @@ function BomTables() {
         <Tab.Pane>
           <Grid>
             <Grid.Row>
+              {/* <StickyColumn width={2}> */}
               <Grid.Column width={2}>
                 <Categorys
                   categories={categories}
@@ -368,6 +378,7 @@ function BomTables() {
                   onSelectCategory={setSelectedCategory}
                 />
               </Grid.Column>
+              {/* </StickyColumn> */}
               <Grid.Column width={1}></Grid.Column>
               <Grid.Column width={12}>
                 {renderContent()}
