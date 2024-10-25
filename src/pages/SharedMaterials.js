@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Header, Button, Message, Confirm } from "semantic-ui-react";
+import React, { useState, useEffect, useMemo } from 'react';
+import { Container, Header, Button, Message, Confirm, Input } from "semantic-ui-react";
 import { useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -29,6 +29,11 @@ const StyledDataTable = styled(DataTable)`
   }
 `;
 
+const SearchContainer = styled.div`
+  margin-bottom: 1rem;
+  max-width: 300px;
+`;
+
 function SharedMaterials() {
     const navigate = useNavigate();
 
@@ -38,6 +43,7 @@ function SharedMaterials() {
     const [isLoading, setIsLoading] = useState(true);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [materialToDelete, setMaterialToDelete] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
@@ -71,7 +77,6 @@ function SharedMaterials() {
                     ...data,
                     createdAt: data.createdAt,
                     lastUpdated: data.lastUpdated || null,
-                    // 計算成品單位成本
                     unitCost: (parseFloat(data.purchaseUnitCost) / parseFloat(data.productUnit)).toFixed(2)
                 };
             });
@@ -106,6 +111,15 @@ function SharedMaterials() {
         }
         setDeleteConfirmOpen(false);
     };
+
+    const filteredMaterials = useMemo(() => {
+        return materials.filter(material =>
+            material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            material.purchaseUnitCost.toString().includes(searchTerm) ||
+            material.productUnit.toString().includes(searchTerm) ||
+            material.unitCost.toString().includes(searchTerm)
+        );
+    }, [materials, searchTerm]);
 
     const columns = [
         {
@@ -147,7 +161,6 @@ function SharedMaterials() {
                 <>
                     <Button primary onClick={() => handleEdit(row.id)}>修改</Button>
                     <Button secondary onClick={() => navigate(`/shared-material-history/${row.id}`)}>歷史記錄</Button>
-                    {/* <Button negative icon="trash" onClick={() => handleDelete(row)} /> */}
                 </>
             ),
             width: '210px',
@@ -167,9 +180,18 @@ function SharedMaterials() {
                     <Message>載入共用料中...</Message>
                 ) : (
                     <>
+                        <SearchContainer>
+                            <Input
+                                fluid
+                                icon='search'
+                                placeholder='搜尋共用料'
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </SearchContainer>
                         <StyledDataTable
                             columns={columns}
-                            data={materials}
+                            data={filteredMaterials}
                             pagination
                             highlightOnHover
                             responsive

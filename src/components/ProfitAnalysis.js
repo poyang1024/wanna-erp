@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import firebase from '../utils/firebase';
 import { Loader, Message, Input, Button, Dimmer } from 'semantic-ui-react';
 import DataTable from 'react-data-table-component';
@@ -20,12 +20,18 @@ const SaveButton = styled(Button)`
   margin-top: 1rem;
 `;
 
+const SearchContainer = styled.div`
+  margin-bottom: 1rem;
+  max-width: 300px;
+`;
+
 const BOMTotalCostAnalysis = () => {
   const [bomTables, setBomTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [costOrderRate, setCostOrderRate] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchCostOrderRate = useCallback(async () => {
     try {
@@ -152,6 +158,18 @@ const BOMTotalCostAnalysis = () => {
     return isNaN(netMargin) ? '-' : netMargin.toFixed(2);
   }, [calculateProfitMargin, costOrderRate]);
 
+  const filteredBomTables = useMemo(() => {
+    return bomTables.filter(table => {
+      const searchTermLower = searchTerm.toLowerCase();
+      return (
+        table.category.toLowerCase().includes(searchTermLower) ||
+        table.tableName.toLowerCase().includes(searchTermLower) ||
+        table.totalCost.toString().includes(searchTerm) ||
+        (table.websitePrice && table.websitePrice.toString().includes(searchTerm))
+      );
+    });
+  }, [bomTables, searchTerm]);
+
   const columns = [
     {
       name: '類別',
@@ -259,9 +277,18 @@ const BOMTotalCostAnalysis = () => {
       <Message info>
         當前訂單成本率: {costOrderRate.toFixed(2)}%
       </Message>
+      <SearchContainer>
+        <Input
+          fluid
+          icon='search'
+          placeholder='搜尋 BOM 表格...'
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </SearchContainer>
       <DataTable
         columns={columns}
-        data={bomTables}
+        data={filteredBomTables}
         pagination
         paginationPerPage={10}
         paginationRowsPerPageOptions={[10, 25, 50, 100]}
