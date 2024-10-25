@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, Search, Dimmer, Loader } from 'semantic-ui-react';
+import { Menu, Search, Dimmer, Loader, Dropdown } from 'semantic-ui-react';
 import { Link, useNavigate } from "react-router-dom";
 import firebase from './utils/firebase';
 
@@ -19,15 +19,13 @@ function Header() {
             setIsLoading(true);
 
             if (currentUser) {
-                // 添加延遲以允許登入 toast 顯示
                 timerRef.current = setTimeout(() => {
                     if (isMounted) {
                         setUser(currentUser);
                         setIsLoading(false);
                     }
-                }, 1500); // 1.5秒延遲，可以根據需要調整
+                }, 1500);
             } else {
-                // 登出時立即更新
                 setUser(null);
                 setIsLoading(false);
                 if (isLoggingOut) {
@@ -57,19 +55,12 @@ function Header() {
     };
 
     const styles = {
-        viewButton: {
+        dropdownButton: {
             backgroundColor: '#f0f8ff',
             color: '#000',
         },
-        editButton: {
-            backgroundColor: '#ffebcd',
+        dropdownItem: {
             color: '#000',
-        },
-        viewButtonHover: {
-            backgroundColor: '#d0e8ff',
-        },
-        editButtonHover: {
-            backgroundColor: '#ffd7b0',
         },
         analyzeButton: {
             backgroundColor: '#baedff',
@@ -102,42 +93,28 @@ function Header() {
                 <Menu.Menu position='right'>
                     {user ? (
                         <>
-                            <Menu.Item 
-                                as={Link} 
-                                to="/new-bomtable" 
-                                style={styles.editButton} 
-                                onMouseEnter={(e) => handleMouseEnter(e, styles.editButtonHover)}
-                                onMouseLeave={(e) => handleMouseLeave(e, styles.editButton)}
-                            >
-                                建立 BOM 表
-                            </Menu.Item>
-                            <Menu.Item 
-                                as={Link} 
-                                to="/new-shared-material" 
-                                style={styles.editButton} 
-                                onMouseEnter={(e) => handleMouseEnter(e, styles.editButtonHover)}
-                                onMouseLeave={(e) => handleMouseLeave(e, styles.editButton)}
-                            >
-                                建立共用料
-                            </Menu.Item>
-                            <Menu.Item 
-                                as={Link} 
-                                to="/bom-table" 
-                                style={styles.viewButton} 
-                                onMouseEnter={(e) => handleMouseEnter(e, styles.viewButtonHover)}
-                                onMouseLeave={(e) => handleMouseLeave(e, styles.viewButton)}
-                            >
-                                查看 BOM 表
-                            </Menu.Item>
-                            <Menu.Item 
-                                as={Link} 
-                                to="/shared-material" 
-                                style={styles.viewButton} 
-                                onMouseEnter={(e) => handleMouseEnter(e, styles.viewButtonHover)}
-                                onMouseLeave={(e) => handleMouseLeave(e, styles.viewButton)}
-                            >
-                                查看共用料
-                            </Menu.Item>
+                            <Dropdown item text='操作' style={styles.dropdownButton}>
+                                <Dropdown.Menu>
+                                    <Dropdown.Item as={Link} to="/new-bomtable" style={styles.dropdownItem}>
+                                        建立 BOM 表
+                                    </Dropdown.Item>
+                                    <Dropdown.Item as={Link} to="/new-shared-material" style={styles.dropdownItem}>
+                                        建立共用料
+                                    </Dropdown.Item>
+                                </Dropdown.Menu>
+                            </Dropdown>
+
+                            <Dropdown item text='查看' style={styles.dropdownButton}>
+                                <Dropdown.Menu>
+                                    <Dropdown.Item as={Link} to="/bom-table" style={styles.dropdownItem}>
+                                        查看 BOM 表
+                                    </Dropdown.Item>
+                                    <Dropdown.Item as={Link} to="/shared-material" style={styles.dropdownItem}>
+                                        查看共用料
+                                    </Dropdown.Item>
+                                </Dropdown.Menu>
+                            </Dropdown>
+
                             <Menu.Item 
                                 as={Link} 
                                 to="/excel-analysis" 
@@ -145,7 +122,7 @@ function Header() {
                                 onMouseEnter={(e) => handleMouseEnter(e, styles.analyzeButtonHover)}
                                 onMouseLeave={(e) => handleMouseLeave(e, styles.analyzeButton)}
                             >
-                                數據分析
+                                報價
                             </Menu.Item>
                             <Menu.Item onClick={handleLogout}>
                                 登出
