@@ -56,19 +56,26 @@ function Header() {
 
     const styles = {
         dropdownButton: {
-            backgroundColor: '#f0f8ff',
+            backgroundColor: '#C4E1FF',
             color: '#000',
         },
         dropdownItem: {
             color: '#000',
         },
         analyzeButton: {
-            backgroundColor: '#baedff',
+            backgroundColor: '#81C0C0',
             color: '#000',
         },
         analyzeButtonHover: {
-            backgroundColor: '#73cfff',
-        }
+            backgroundColor: '#B3D9D9',
+        },
+        profileButton: {
+            backgroundColor: '#FFAD86',
+            color: '#000',
+        },
+        profileButtonHover: {
+            backgroundColor: '#FFCBB3',
+        },
     };
 
     const handleMouseEnter = (e, hoverStyle) => {
@@ -123,6 +130,15 @@ function Header() {
                                 onMouseLeave={(e) => handleMouseLeave(e, styles.analyzeButton)}
                             >
                                 報價
+                            </Menu.Item>
+                            <Menu.Item 
+                                as={Link} 
+                                to="/profile"
+                                style={styles.profileButton}
+                                onMouseEnter={(e) => handleMouseEnter(e, styles.profileButtonHover)}
+                                onMouseLeave={(e) => handleMouseLeave(e, styles.profileButton)}
+                            >
+                                個人資料
                             </Menu.Item>
                             <Menu.Item onClick={handleLogout}>
                                 登出

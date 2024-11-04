@@ -97,7 +97,7 @@ function EditSharedMaterial() {
         try {
             const updatedAt = firebase.firestore.Timestamp.now();
             const updatedBy = {
-                displayName: user.email || "管理員",
+                displayName: user.displayName || user.email ,
                 uid: user.uid,
                 email: user.email
             };

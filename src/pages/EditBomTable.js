@@ -168,7 +168,7 @@ function EditBomTable() {
         updatedAt: currentTimestamp,
         updatedBy: {
           uid: currentUser.uid,
-          displayName: currentUser.email,
+          displayName: currentUser.displayName || currentUser.email,
           email: currentUser.email
         }
       };

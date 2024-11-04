@@ -17,6 +17,7 @@ import EditSharedMaterial from "./pages/EditSharedMaterials"
 import SharedMaterialHistory from "./pages/SharedMaterialHistory"
 import ExcelAnalysisPage from './pages/ExcelAnalysisPage';
 import SavedAnalysisPage from './components/SavedAnalysisPage';
+import ProfilePage from './pages/ProfilePage'
 
 function useAuth() {
   const [user, setUser] = useState(null);
@@ -119,6 +120,7 @@ function App() {
                         <Route path="/shared-material-history/:id" element={<ProtectedRoute><SharedMaterialHistory /></ProtectedRoute>} />
                         <Route path="/excel-analysis" element={<ProtectedRoute><ExcelAnalysisPage /></ProtectedRoute>} />
                         <Route path="/saved-analysis" element={<ProtectedRoute><SavedAnalysisPage /></ProtectedRoute>} />
+                        <Route path="/profile" element={<ProfilePage />} />
                     </Routes>
                 </div>
                 <Footer />

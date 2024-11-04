@@ -102,7 +102,7 @@ function SharedMaterialHistory() {
                                     <Table.Cell>{record.updatedAt}</Table.Cell>
                                     <Table.Cell>{record.name}</Table.Cell>
                                     <Table.Cell>{record.purchaseUnitCost}</Table.Cell>
-                                    <Table.Cell>{record.updatedBy.email}</Table.Cell>
+                                    <Table.Cell>{record.updatedBy.displayName || record.updatedBy.email}</Table.Cell>
                                     <Table.Cell>{record.changeType}</Table.Cell>
                                 </Table.Row>
                             ))}
