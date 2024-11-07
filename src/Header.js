@@ -62,12 +62,9 @@ function Header() {
         dropdownItem: {
             color: '#000',
         },
-        analyzeButton: {
+        pricingButton: {  // 改名為 pricingButton
             backgroundColor: '#81C0C0',
             color: '#000',
-        },
-        analyzeButtonHover: {
-            backgroundColor: '#B3D9D9',
         },
         profileButton: {
             backgroundColor: '#FFAD86',
@@ -92,7 +89,7 @@ function Header() {
 
     return (
         <>
-            <Menu>
+            <Menu style={{ margin: 0, padding: 0 }}>
                 <Menu.Item as={Link} to="/">KIND FOOD ERP-System</Menu.Item>
                 <Menu.Item>
                     <Search />
@@ -122,15 +119,25 @@ function Header() {
                                 </Dropdown.Menu>
                             </Dropdown>
 
-                            <Menu.Item 
-                                as={Link} 
-                                to="/excel-analysis" 
-                                style={styles.analyzeButton} 
-                                onMouseEnter={(e) => handleMouseEnter(e, styles.analyzeButtonHover)}
-                                onMouseLeave={(e) => handleMouseLeave(e, styles.analyzeButton)}
-                            >
-                                報價
-                            </Menu.Item>
+                            <Dropdown item text='報價' style={styles.pricingButton}>
+                                <Dropdown.Menu>
+                                    <Dropdown.Item 
+                                        as={Link} 
+                                        to="/excel-analysis" 
+                                        style={styles.dropdownItem}
+                                    >
+                                        官網報價分析
+                                    </Dropdown.Item>
+                                    <Dropdown.Item 
+                                        as={Link} 
+                                        to="/dealer-pricing" 
+                                        style={styles.dropdownItem}
+                                    >
+                                        經銷報價計算
+                                    </Dropdown.Item>
+                                </Dropdown.Menu>
+                            </Dropdown>
+
                             <Menu.Item 
                                 as={Link} 
                                 to="/profile"
