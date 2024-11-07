@@ -252,7 +252,7 @@ function SavedPricingPage() {
       <Toaster position="top-right" />
       
       <TopControls>
-        <Header as="h1">經銷歷史報價管理"</Header>
+        <Header as="h1">經銷歷史報價管理</Header>
         <Button 
           primary 
           as={Link} 
