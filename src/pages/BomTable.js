@@ -124,7 +124,10 @@ function BomTables() {
         let category = data.category;
         if (category instanceof firebase.firestore.DocumentReference) {
           const categoryDoc = await category.get();
-          category = categoryDoc.exists ? categoryDoc.data().name : null;
+          category = categoryDoc.exists ? {
+            id: categoryDoc.id, 
+            name: categoryDoc.data().name
+          } : null;
         }
 
         const items = await Promise.all(data.items.map(async item => {
@@ -274,7 +277,10 @@ function BomTables() {
       tableName: `${bomTable.tableName} (${formattedDate} 複製)`,
       productCode: bomTable.productCode,
       barcode: bomTable.barcode,
-      category: bomTable.category,
+      category: {
+        id: bomTable.category.id,
+        name: bomTable.category.name
+      },
       items: bomTable.items.map(item => ({
         name: item.name,
         quantity: item.quantity,

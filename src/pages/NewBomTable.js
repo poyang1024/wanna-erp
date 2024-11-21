@@ -76,7 +76,7 @@ function NewBOMTable() {
                         setTableName(parsed.tableName);
                         setProductCode(parsed.productCode);
                         setBarcode(parsed.barcode);
-                        setSelectedCategory(parsed.category);
+                        setSelectedCategory(parsed.category.id);
 
                         const initializedItems = parsed.items.map(item => {
                             // console.log('Processing item:', item);
