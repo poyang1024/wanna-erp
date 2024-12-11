@@ -20,53 +20,53 @@ import SavedAnalysisPage from './components/SavedAnalysisPage';
 import ProfilePage from './pages/ProfilePage'
 import PricingAnalysisPage from './pages/PricingAnalysis'
 import SavedPricingPage from './components/SaviedPrcingPage'
+import OrderCostRatePage from './components/OrderCostRatePage';
 
 function useAuth() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-
-      if (currentUser) {
-        // 更新最後活動時間
-        const timestamp = Date.now();
-        localStorage.setItem('lastActivityTime', timestamp.toString());
-        console.log('User logged in, setting lastActivityTime:', timestamp);
-      }
-    });
-
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    if (!user) return; // 如果沒有用戶登入，不需要執行監控
-
-    const INACTIVITY_TIMEOUT = 2 * 60 * 60 * 1000; // 2小時
-    const CHECK_INTERVAL = 3 * 60 * 1000; // 每3分鐘檢查一次
-
-    // 更新最後活動時間的函數
-    const updateLastActivityTime = () => {
-      if (user) {
-        const timestamp = Date.now();
-        localStorage.setItem('lastActivityTime', timestamp.toString());
-        console.log('Activity detected, updating lastActivityTime:', timestamp);
-      }
-    };
-
-    // 檢查是否需要登出的函數
-    const checkInactivity = () => {
-      const lastActivityTime = localStorage.getItem('lastActivityTime');
-      if (lastActivityTime && user) {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+  
+    useEffect(() => {
+      const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
+        setUser(currentUser);
+        setLoading(false);
+  
+        if (currentUser) {
+          const timestamp = Date.now();
+          localStorage.setItem('lastActivityTime', timestamp.toString());
+        }
+      });
+  
+      return unsubscribe;
+    }, []);
+  
+    useEffect(() => {
+      if (!user) return;
+  
+      // 縮短超時時間為 30 分鐘
+      const INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
+      // 縮短檢查間隔為 1 分鐘
+      const CHECK_INTERVAL = 60 * 1000; 
+  
+      let lastActivity = Date.now();
+      let timeoutId = null;
+  
+      const resetTimer = () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        lastActivity = Date.now();
+        localStorage.setItem('lastActivityTime', lastActivity.toString());
+        
+        timeoutId = setTimeout(checkAndLogout, INACTIVITY_TIMEOUT);
+      };
+  
+      const checkAndLogout = () => {
         const currentTime = Date.now();
-        const inactiveTime = currentTime - parseInt(lastActivityTime, 10);
-        console.log('Checking inactivity. Time since last activity:', inactiveTime / 1000 / 60, 'minutes');
-
-        if (inactiveTime > INACTIVITY_TIMEOUT) {
-          console.log('Inactivity timeout reached, logging out');
+        const inactiveTime = currentTime - lastActivity;
+  
+        if (inactiveTime >= INACTIVITY_TIMEOUT) {
           firebase.auth().signOut().then(() => {
             localStorage.removeItem('lastActivityTime');
             toast.info('由於長時間無活動，您已被登出', {
@@ -78,29 +78,57 @@ function useAuth() {
             console.error('Logout error:', error);
           });
         }
-      }
-    };
-
-    // 設置活動監聽器
-    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
-    activityEvents.forEach(event => {
-      document.addEventListener(event, updateLastActivityTime);
-    });
-
-    // 設置定期檢查
-    const intervalId = setInterval(checkInactivity, CHECK_INTERVAL);
-
-    // Cleanup
-    return () => {
+      };
+  
+      // 增加更多活動事件監聽
+      const activityEvents = [
+        'mousedown',
+        'mousemove',
+        'keydown',
+        'scroll',
+        'touchstart',
+        'click',
+        'input',
+        'change',
+        'submit',
+        'focus',
+        'blur'
+      ];
+  
+      // 添加節流函數避免過於頻繁的更新
+      let throttleTimeout;
+      const throttledResetTimer = () => {
+        if (!throttleTimeout) {
+          throttleTimeout = setTimeout(() => {
+            resetTimer();
+            throttleTimeout = null;
+          }, 1000); // 1秒內只觸發一次
+        }
+      };
+  
       activityEvents.forEach(event => {
-        document.removeEventListener(event, updateLastActivityTime);
+        window.addEventListener(event, throttledResetTimer);
       });
-      clearInterval(intervalId);
-    };
-  }, [navigate, user]);
-
-  return { user, loading };
-}
+  
+      // 初始化定時器
+      resetTimer();
+  
+      // 定期檢查
+      const intervalId = setInterval(checkAndLogout, CHECK_INTERVAL);
+  
+      return () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        clearInterval(intervalId);
+        activityEvents.forEach(event => {
+          window.removeEventListener(event, throttledResetTimer);
+        });
+      };
+    }, [navigate, user]);
+  
+    return { user, loading };
+  }
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -138,6 +166,7 @@ function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/dealer-pricing" element={<PricingAnalysisPage />} />
             <Route path="/saved-pricing" element={<SavedPricingPage />} />
+            <Route path="/order-cost-rate" element={<OrderCostRatePage />} />
           </Routes>
         </div>
         <Footer />

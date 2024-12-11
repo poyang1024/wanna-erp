@@ -130,7 +130,7 @@ function Header() {
                                     </Dropdown.Item>
                                     <Dropdown.Item 
                                         as={Link} 
-                                        to="/dealer-pricing" 
+                                        to="/saved-pricing" 
                                         style={styles.dropdownItem}
                                     >
                                         經銷報價計算

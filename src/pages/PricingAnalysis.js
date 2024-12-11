@@ -191,6 +191,7 @@ const DealerPricingCalculator = () => {
           totalCost,
           totalCostWithLogistics: totalCostWithLogistics.toFixed(2),
           category,
+          websitePrice: data.websitePrice || '',
           logisticsCostRate: data.logisticsCostRate || '',
           dealerMargin: data.dealerMargin || '',
           specialMargin: data.specialMargin || '',
@@ -299,8 +300,6 @@ const DealerPricingCalculator = () => {
     setSaving(true);
     try {
       const batch = firebase.firestore().batch();
-  
-      // 更新 BOM 表的預設值
       bomTables.forEach(table => {
         const ref = firebase.firestore().collection('bom_tables').doc(table.id);
         const updateData = {
@@ -310,7 +309,8 @@ const DealerPricingCalculator = () => {
           dealerPrice: table.dealerPrice || null,
           specialPrice: table.specialPrice || null,
           bottomPrice: table.bottomPrice || null,
-          logisticsCostRate: table.logisticsCostRate || null
+          logisticsCostRate: table.logisticsCostRate || null,
+          websitePrice: table.websitePrice || null
         };
         batch.update(ref, updateData);
       });
@@ -389,7 +389,6 @@ const DealerPricingCalculator = () => {
     }
   
     try {
-      // 只保存報價方案，不更新 BOM 表
       const saveData = {
         name: saveName.trim(),
         note: saveNote.trim(),
@@ -399,6 +398,7 @@ const DealerPricingCalculator = () => {
           category: table.category,
           totalCost: table.totalCost,
           totalCostWithLogistics: table.totalCostWithLogistics,
+          websitePrice: table.websitePrice || null,
           dealerPrice: table.dealerPrice || null,
           specialPrice: table.specialPrice || null,
           bottomPrice: table.bottomPrice || null,
@@ -416,7 +416,6 @@ const DealerPricingCalculator = () => {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
   
-      // 只保存到 pricingHistory collection
       await firebase.firestore()
         .collection('pricingHistory')
         .add(saveData);
@@ -481,27 +480,59 @@ const DealerPricingCalculator = () => {
       name: '類別',
       selector: row => row.category,
       sortable: true,
-      width: '8%'
+      width: '11%'
     },
     {
       name: '商品名稱',
       selector: row => row.tableName,
       sortable: true,
-      width: '12%'
+      width: '13%'
     },
     {
-      name: '成本',
-      selector: row => row.totalCost,
-      sortable: true,
-      format: row => `$${parseFloat(row.totalCost).toFixed(2)}`,
-      width: '8%'
+        name: '官網價格',
+        cell: row => (
+            <div style={{ 
+                color: row.websitePriceChanged ? '#ff0000' : 'inherit'
+            }}>
+                {currentSchemeName ? 
+                    // 歷史報價檢視
+                    <>
+                        {row.oldWebsitePrice ? `$${row.oldWebsitePrice}` : '-'}
+                        {row.websitePriceChanged && (
+                            <span style={{ marginLeft: '4px', fontSize: '1.15em' }}>
+                                (現為 ${row.websitePrice})
+                            </span>
+                        )}
+                    </> :
+                    // 標準報價檢視
+                    `$${row.websitePrice || '-'}`
+                }
+            </div>
+        ),
+        sortable: true,
+        width: '10%'
     },
     {
-      name: '含物流成本',
-      selector: row => row.totalCostWithLogistics,
-      sortable: true,
-      format: row => `$${row.totalCostWithLogistics}`,
-      width: '8%'
+        name: '成本',
+        cell: row => (
+            <div style={{ color: row.costChanged ? '#ff0000' : 'inherit' }}>
+                {currentSchemeName ?
+                    // 歷史報價檢視
+                    <>
+                        {row.oldTotalCost ? `$${row.oldTotalCost.toFixed(2)}` : '-'}
+                        {row.costChanged && (
+                            <span style={{ marginLeft: '4px', fontSize: '1.15em' }}>
+                                (現為 ${row.totalCost.toFixed(2)})
+                            </span>
+                        )}
+                    </> :
+                    // 標準報價檢視
+                    `$${row.totalCost.toFixed(2)}`
+                }
+            </div>
+        ),
+        sortable: true,
+        width: '10%'
     },
     {
       name: '經銷價',
@@ -514,7 +545,7 @@ const DealerPricingCalculator = () => {
           style={{ width: '75%' }}
         />
       ),
-      width: '10%'
+      width: '8%'
     },
     {
       name: '經銷毛利率(%)',
@@ -527,7 +558,7 @@ const DealerPricingCalculator = () => {
           style={{ width: '75%' }}
         />
       ),
-      width: '10%'
+      width: '8%'
     },
     {
       name: '特價',
@@ -540,7 +571,7 @@ const DealerPricingCalculator = () => {
           style={{ width: '75%' }}
         />
       ),
-      width: '10%'
+      width: '8%'
     },
     {
       name: '特價毛利率(%)',
@@ -553,7 +584,7 @@ const DealerPricingCalculator = () => {
           style={{ width: '75%' }}
         />
       ),
-      width: '10%'
+      width: '8%'
     },
     {
       name: '底價',
@@ -674,38 +705,39 @@ const DealerPricingCalculator = () => {
 
       <SchemeName>
         <div>
-          {currentSchemeName ? (
+            {currentSchemeName ? (
             <>
-              <Label color='blue' size='large'>
+                <Label color='blue' size='large'>
                 當前方案：{currentSchemeName}
-              </Label>
-              {currentSchemeNote && (
-                <Label basic size='large' style={{ marginLeft: '1rem' }}>
-                  備註：{currentSchemeNote}
                 </Label>
-              )}
-              <Button 
-                size='small' 
-                icon='close' 
-                style={{ marginLeft: '1rem' }}
-                onClick={handleCloseScheme}
-              />
+                {currentSchemeNote && (
+                <Label basic size='large' style={{ marginLeft: '1rem' }}>
+                    備註：{currentSchemeNote}
+                </Label>
+                )}
             </>
-          ) : (
+            ) : (
             <Label color='grey' size='large'>
-              目前正在修改預設值
+                目前正在修改標準報價
             </Label>
-          )}
+            )}
         </div>
       </SchemeName>
 
       <ActionButtons>
         <Button 
-          as={Link} 
-          to="/saved-pricing"
-          color="teal"
+            as={Link} 
+            to="/saved-pricing"
+            color="teal"
         >
-          查看歷史報價
+            返回報價清單
+        </Button>
+        <Button
+            as={Link}
+            to="/order-cost-rate"
+            color="blue"
+        >
+            訂單成本率計算
         </Button>
       </ActionButtons>
 
@@ -715,27 +747,30 @@ const DealerPricingCalculator = () => {
         <p>2. 請先設定每個商品的訂單物流成本率，系統會自動計算含物流成本的總成本</p>
         <p>3. 所有毛利率均基於含物流的總成本計算</p>
         <p>4. 經銷價、特價和底價都可以通過輸入價格或毛利率來設定</p>
-        <p>5. 可以儲存當前報價方案，並從歷史紀錄中載入已儲存的方案</p>
+        <p>5. 可以儲存當前報價方案，並從報價清單中載入已儲存的方案</p>
+        <p>6. 若僅需儲存部分商品報價，可以先另存報價清單後進入修改清除所有值，再行填入需要的價格</p>
       </Message>
       
       <TopControls>
         <SearchContainer>
-          <StyledSearchInput
+            <StyledSearchInput
             fluid
             icon='search'
             iconPosition='left'
             placeholder='搜尋商品...'
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-          />
+            />
         </SearchContainer>
-        <ClearButton
-        negative
-        onClick={handleClearClick}
-        icon="trash alternate"
-        content="清除所有輸入值"
-        />
-      </TopControls>
+        {currentSchemeName && (
+            <ClearButton
+            negative
+            onClick={handleClearClick}
+            icon="trash alternate"
+            content="清除所有輸入值"
+            />
+        )}
+        </TopControls>
 
       <DataTable
         columns={columns}
@@ -767,7 +802,7 @@ const DealerPricingCalculator = () => {
               loading={saving}
               disabled={saving}
             >
-              儲存預設變更
+              儲存變更
             </Button>
             <Button
               color="green"

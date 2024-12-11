@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Container, Header, Loader, Button, Confirm, Message, Modal, Form } from 'semantic-ui-react';
+import { Container, Header, Loader, Button, Confirm, Message, Modal, Form, Dimmer } from 'semantic-ui-react';
 import firebase from '../utils/firebase';
 import DataTable from 'react-data-table-component';
 import styled from 'styled-components';
@@ -22,11 +22,19 @@ const ActionButtonGroup = styled.div`
   gap: 0.5rem;
 `;
 
+const FullscreenLoader = styled(Dimmer)`
+  &.ui.dimmer {
+    position: fixed;
+    z-index: 9999;
+  }
+`;
+
 function SavedPricingPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [savedPricings, setSavedPricings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isApplying, setIsApplying] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -68,59 +76,139 @@ function SavedPricingPage() {
     return () => unsubscribe();
   }, [fetchSavedPricings]);
 
-  const handleDelete = useCallback((item) => {
-    setItemToDelete(item);
-    setConfirmOpen(true);
-  }, []);
-
-  const handleEdit = useCallback((item) => {
-    setEditingItem(item);
-    setEditName(item.name);
-    setEditNote(item.note || '');
-    setIsEditModalOpen(true);
-  }, []);
-
   const handleApply = useCallback(async (item) => {
+    setIsApplying(true);
     try {
-      // 獲取原始的 BOM 表數據結構，但使用保存的方案數據
       const snapshot = await firebase.firestore().collection('bom_tables').get();
-      const updatedPricingData = await Promise.all(snapshot.docs.map(async doc => {
-        // 在保存的方案數據中找到對應的項目
+      const updatedPricingData = [];
+  
+      // 處理每個 BOM 表
+      for (const doc of snapshot.docs) {
+        const bomData = doc.data();
+        const currentWebsitePrice = bomData.websitePrice ? parseFloat(bomData.websitePrice) : null;
         const savedItem = item.pricingData.find(saved => saved.id === doc.id);
+        const savedWebsitePrice = savedItem?.websitePrice ? parseFloat(savedItem.websitePrice) : null;
+        const hasPriceChanged = currentWebsitePrice !== null && savedWebsitePrice !== null && currentWebsitePrice !== savedWebsitePrice;
+  
+        // 計算包含稅金的總成本
+        const totalCost = await (async () => {
+          let cost = 0;
+          for (const item of bomData.items || []) {
+            let unitCost = 0;
+            if (item.isShared) {
+              if (item.unitCost instanceof firebase.firestore.DocumentReference) {
+                const unitCostDoc = await item.unitCost.get();
+                unitCost = unitCostDoc.exists ? unitCostDoc.data().unitCost : 0;
+              } else {
+                unitCost = parseFloat(item.unitCost) || 0;
+              }
+            } else {
+              unitCost = parseFloat(item.unitCost) || 0;
+            }
+            const quantity = parseFloat(item.quantity) || 0;
+            const itemCost = quantity * unitCost;
+            const tax = item.isTaxed ? itemCost * 0.05 : 0;
+            cost += itemCost + tax;
+          }
+          return cost;
+        })();
+
+        const currentCost = totalCost;
+        const savedCost = savedItem?.totalCost || null;
+        const hasCostChanged = currentCost !== null && savedCost !== null && Math.abs(currentCost - savedCost) > 0.01;
+
+  
+        // 獲取分類
+        let category = '未分類';
+        if (bomData.category instanceof firebase.firestore.DocumentReference) {
+          try {
+            const categoryDoc = await bomData.category.get();
+            category = categoryDoc.exists ? categoryDoc.data().name : '未分類';
+          } catch (error) {
+            console.error('Error fetching category:', error);
+          }
+        } else if (typeof bomData.category === 'string') {
+          category = bomData.category;
+        }
+  
+        // 組合數據
+        const baseData = {
+          id: doc.id,
+          tableName: bomData.tableName || '未命名表格',
+          category,
+          totalCost: currentCost,
+          oldTotalCost: savedCost,
+          costChanged: hasCostChanged,
+          websitePrice: currentWebsitePrice,
+          oldWebsitePrice: savedWebsitePrice,
+          websitePriceChanged: hasPriceChanged,
+          logisticsCostRate: '',
+          dealerPrice: '',
+          specialPrice: '',
+          bottomPrice: '',
+          dealerMargin: '',
+          specialMargin: '',
+          bottomMargin: '',
+          totalCostWithLogistics: totalCost.toFixed(2),
+          isNewItem: !savedItem
+        };
+  
         if (savedItem) {
-          // 如果找到對應項目，使用保存的定價數據
-          return {
-            ...savedItem,
-            // 確保保留所有需要的定價相關欄位
+          updatedPricingData.push({
+            ...baseData,
+            logisticsCostRate: savedItem.logisticsCostRate || '',
             dealerPrice: savedItem.dealerPrice || '',
             specialPrice: savedItem.specialPrice || '',
             bottomPrice: savedItem.bottomPrice || '',
             dealerMargin: savedItem.dealerMargin || '',
             specialMargin: savedItem.specialMargin || '',
             bottomMargin: savedItem.bottomMargin || '',
-            logisticsCostRate: savedItem.logisticsCostRate || '',
-            totalCostWithLogistics: savedItem.totalCostWithLogistics || ''
-          };
+            totalCostWithLogistics: savedItem.totalCostWithLogistics || baseData.totalCostWithLogistics
+          });
+        } else {
+          updatedPricingData.push(baseData);
         }
-        return null;
-      }));
+      }
   
-      // 過濾掉 null 值並只保留有效數據
-      const validPricingData = updatedPricingData.filter(item => item !== null);
+      // 排序：先按類別，再按名稱
+      updatedPricingData.sort((a, b) => {
+        const categoryA = (a.category || '未分類').toLowerCase();
+        const categoryB = (b.category || '未分類').toLowerCase();
+        const categoryCompare = categoryA.localeCompare(categoryB);
+        
+        if (categoryCompare === 0) {
+          return (a.tableName || '').toLowerCase().localeCompare((b.tableName || '').toLowerCase());
+        }
+        return categoryCompare;
+      });
   
-      // 儲存完整的方案數據，包含方案 ID
-      localStorage.setItem('currentPricingData', JSON.stringify({
-        id: item.id,              // 加入方案 ID
-        pricingData: validPricingData,
-        name: item.name,
-        note: item.note || ''
-      }));
+      // 儲存到 localStorage
+      const saveData = {
+        id: item.id,
+        name: item.name || '',
+        note: item.note || '',
+        pricingData: updatedPricingData
+      };
+  
+      localStorage.setItem('currentPricingData', JSON.stringify(saveData));
+  
+      // Success message
+      const newItemsCount = updatedPricingData.filter(item => item.isNewItem).length;
+      const changedPricesCount = updatedPricingData.filter(item => item.websitePriceChanged).length;
       
-      toast.success('已載入報價方案');
+      if (changedPricesCount > 0) {
+        toast.success(`已載入報價方案，${changedPricesCount} 個商品官網價格已更新${newItemsCount > 0 ? `，包含 ${newItemsCount} 個新商品` : ''}`);
+      } else if (newItemsCount > 0) {
+        toast.success(`已載入報價方案，包含 ${newItemsCount} 個新商品`);
+      } else {
+        toast.success('已載入報價方案');
+      }
+
       navigate('/dealer-pricing');
     } catch (error) {
       console.error('Error applying pricing scheme:', error);
       toast.error('載入報價方案時發生錯誤');
+      setIsApplying(false);
     }
   }, [navigate]);
 
@@ -141,6 +229,18 @@ function SavedPricingPage() {
     }
     setConfirmOpen(false);
     setItemToDelete(null);
+  };
+
+  const handleEdit = (item) => {
+    setEditingItem(item);
+    setEditName(item.name || '');
+    setEditNote(item.note || '');
+    setIsEditModalOpen(true);
+  };
+
+  const handleDelete = (item) => {
+    setItemToDelete(item);
+    setConfirmOpen(true);
   };
 
   const handleUpdate = async () => {
@@ -194,13 +294,28 @@ function SavedPricingPage() {
       name: '操作',
       cell: row => (
         <ActionButtonGroup>
-          <Button size='small' primary onClick={() => handleApply(row)}>
-            套用
+          <Button 
+            size='small' 
+            primary 
+            onClick={() => handleApply(row)}
+            disabled={isApplying}
+          >
+            查看
           </Button>
-          <Button size='small' secondary onClick={() => handleEdit(row)}>
+          <Button 
+            size='small' 
+            secondary 
+            onClick={() => handleEdit(row)}
+            disabled={isApplying}
+          >
             編輯
           </Button>
-          <Button size='small' negative onClick={() => handleDelete(row)}>
+          <Button 
+            size='small' 
+            negative 
+            onClick={() => handleDelete(row)}
+            disabled={isApplying}
+          >
             刪除
           </Button>
         </ActionButtonGroup>
@@ -257,8 +372,9 @@ function SavedPricingPage() {
           primary 
           as={Link} 
           to="/dealer-pricing"
+          disabled={isApplying}
         >
-          返回報價計算
+          標準報價
         </Button>
       </TopControls>
 
@@ -317,6 +433,10 @@ function SavedPricingPage() {
           </Button>
         </Modal.Actions>
       </Modal>
+
+      <FullscreenLoader active={isApplying} inverted>
+        <Loader size="large">資料載入與比對中，請稍候...</Loader>
+      </FullscreenLoader>
     </StyledContainer>
   );
 }
