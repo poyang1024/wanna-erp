@@ -489,48 +489,66 @@ const DealerPricingCalculator = () => {
       width: '13%'
     },
     {
-        name: '官網價格',
-        cell: row => (
-            <div style={{ 
-                color: row.websitePriceChanged ? '#ff0000' : 'inherit'
-            }}>
-                {currentSchemeName ? 
-                    // 歷史報價檢視
-                    <>
-                        {row.oldWebsitePrice ? `$${row.oldWebsitePrice}` : '-'}
-                        {row.websitePriceChanged && (
-                            <span style={{ marginLeft: '4px', fontSize: '1.15em' }}>
-                                (現為 ${row.websitePrice})
-                            </span>
-                        )}
-                    </> :
-                    // 標準報價檢視
-                    `$${row.websitePrice || '-'}`
-                }
-            </div>
-        ),
-        sortable: true,
-        width: '10%'
+      name: '官網價格',
+      cell: row => {
+          const hasOldPrice = row.oldWebsitePrice !== undefined && row.oldWebsitePrice !== null;
+          const hasCurrentPrice = row.websitePrice !== undefined && row.websitePrice !== null;
+          const priceChanged = 
+              (hasOldPrice && hasCurrentPrice && row.oldWebsitePrice !== row.websitePrice) || 
+              (!hasOldPrice && hasCurrentPrice);
+  
+          return (
+              <div style={{ 
+                  color: currentSchemeName && priceChanged ? '#ff0000' : 'inherit'
+              }}>
+                  {currentSchemeName ? 
+                      // 歷史報價檢視
+                      <>
+                          {hasOldPrice ? `$${row.oldWebsitePrice}` : '-'}
+                          {priceChanged && (
+                              <span style={{ marginLeft: '4px', fontSize: '1.15em' }}>
+                                  (現為 ${row.websitePrice})
+                              </span>
+                          )}
+                      </> :
+                      // 標準報價檢視
+                      `$${row.websitePrice || '-'}`
+                  }
+              </div>
+          );
+      },
+      sortable: true,
+      width: '10%'
     },
     {
         name: '成本',
-        cell: row => (
-            <div style={{ color: row.costChanged ? '#ff0000' : 'inherit' }}>
-                {currentSchemeName ?
-                    // 歷史報價檢視
-                    <>
-                        {row.oldTotalCost ? `$${row.oldTotalCost.toFixed(2)}` : '-'}
-                        {row.costChanged && (
-                            <span style={{ marginLeft: '4px', fontSize: '1.15em' }}>
-                                (現為 ${row.totalCost.toFixed(2)})
-                            </span>
-                        )}
-                    </> :
-                    // 標準報價檢視
-                    `$${row.totalCost.toFixed(2)}`
-                }
-            </div>
-        ),
+        cell: row => {
+            const hasOldCost = row.oldTotalCost !== undefined && row.oldTotalCost !== null;
+            const hasCurrentCost = row.totalCost !== undefined && row.totalCost !== null;
+            const costChanged = 
+                (hasOldCost && hasCurrentCost && Math.abs(row.oldTotalCost - row.totalCost) > 0.01) || 
+                (!hasOldCost && hasCurrentCost);
+    
+            return (
+                <div style={{ 
+                    color: currentSchemeName && costChanged ? '#ff0000' : 'inherit'
+                }}>
+                    {currentSchemeName ?
+                        // 歷史報價檢視
+                        <>
+                            {hasOldCost ? `$${row.oldTotalCost.toFixed(2)}` : '-'}
+                            {costChanged && (
+                                <span style={{ marginLeft: '4px', fontSize: '1.15em' }}>
+                                    (現為 ${row.totalCost.toFixed(2)})
+                                </span>
+                            )}
+                        </> :
+                        // 標準報價檢視
+                        `$${row.totalCost.toFixed(2)}`
+                    }
+                </div>
+            );
+        },
         sortable: true,
         width: '10%'
     },
