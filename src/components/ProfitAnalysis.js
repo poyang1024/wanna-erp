@@ -272,7 +272,6 @@ const BOMTotalCostAnalysis = () => {
 
   return (
     <Container>
-      <Toaster position="top-center" reverseOrder={false} />
       <Title>BOM 表格總成本分析</Title>
       <Message info>
         當前訂單成本率: {costOrderRate.toFixed(2)}%
