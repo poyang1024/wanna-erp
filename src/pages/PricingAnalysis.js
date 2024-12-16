@@ -91,7 +91,7 @@ const DealerPricingCalculator = () => {
     if (!cost || margin === '' || margin === undefined) return '';
     const logisticsCostRateDecimal = parseFloat(logisticsCostRate) / 100 || 0;
     // 使用目標毛利率加上物流成本率來計算最終價格
-    return (cost / (1 - (margin / 100) - logisticsCostRateDecimal)).toFixed(2);
+    return (cost / (1 - (margin / 100) - logisticsCostRateDecimal)).toFixed(1);
   }, []);
   
   const calculateMargin = useCallback((price, cost) => {
@@ -553,7 +553,7 @@ const DealerPricingCalculator = () => {
         width: '10%'
     },
     {
-      name: '經銷價',
+      name: '經銷價（未稅）',
       cell: row => (
         <Input
           type="number"
@@ -579,7 +579,7 @@ const DealerPricingCalculator = () => {
       width: '8%'
     },
     {
-      name: '特價',
+      name: '特價（未稅）',
       cell: row => (
         <Input
           type="number"
@@ -605,7 +605,7 @@ const DealerPricingCalculator = () => {
       width: '8%'
     },
     {
-      name: '底價',
+      name: '底價（未稅）',
       cell: row => (
         <Input
           type="number"
