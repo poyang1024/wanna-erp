@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, Navigate } from "react-router-dom";
-import firebase from './utils/firebase';
-import { toast, ToastContainer } from 'react-toastify';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+import useAuth from './hooks/useAuth';
 import Header from "./Header";
 import Footer from "./components/Footer";
 import Signin from "./pages/Signin";
@@ -22,114 +22,7 @@ import PricingAnalysisPage from './pages/PricingAnalysis'
 import SavedPricingPage from './components/SaviedPrcingPage'
 import OrderCostRatePage from './components/OrderCostRatePage';
 
-function useAuth() {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
-  
-    useEffect(() => {
-      const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
-        setUser(currentUser);
-        setLoading(false);
-  
-        if (currentUser) {
-          const timestamp = Date.now();
-          localStorage.setItem('lastActivityTime', timestamp.toString());
-        }
-      });
-  
-      return unsubscribe;
-    }, []);
-  
-    useEffect(() => {
-      if (!user) return;
-  
-      // 縮短超時時間為 30 分鐘
-      const INACTIVITY_TIMEOUT = 30 * 60 * 1000; 
-      // 縮短檢查間隔為 1 分鐘
-      const CHECK_INTERVAL = 60 * 1000; 
-  
-      let lastActivity = Date.now();
-      let timeoutId = null;
-  
-      const resetTimer = () => {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        lastActivity = Date.now();
-        localStorage.setItem('lastActivityTime', lastActivity.toString());
-        
-        timeoutId = setTimeout(checkAndLogout, INACTIVITY_TIMEOUT);
-      };
-  
-      const checkAndLogout = () => {
-        const currentTime = Date.now();
-        const inactiveTime = currentTime - lastActivity;
-  
-        if (inactiveTime >= INACTIVITY_TIMEOUT) {
-          firebase.auth().signOut().then(() => {
-            localStorage.removeItem('lastActivityTime');
-            toast.info('由於長時間無活動，您已被登出', {
-              position: "top-center",
-              autoClose: 3000,
-            });
-            navigate('/signin');
-          }).catch(error => {
-            console.error('Logout error:', error);
-          });
-        }
-      };
-  
-      // 增加更多活動事件監聽
-      const activityEvents = [
-        'mousedown',
-        'mousemove',
-        'keydown',
-        'scroll',
-        'touchstart',
-        'click',
-        'input',
-        'change',
-        'submit',
-        'focus',
-        'blur'
-      ];
-  
-      // 添加節流函數避免過於頻繁的更新
-      let throttleTimeout;
-      const throttledResetTimer = () => {
-        if (!throttleTimeout) {
-          throttleTimeout = setTimeout(() => {
-            resetTimer();
-            throttleTimeout = null;
-          }, 1000); // 1秒內只觸發一次
-        }
-      };
-  
-      activityEvents.forEach(event => {
-        window.addEventListener(event, throttledResetTimer);
-      });
-  
-      // 初始化定時器
-      resetTimer();
-  
-      // 定期檢查
-      const intervalId = setInterval(checkAndLogout, CHECK_INTERVAL);
-  
-      return () => {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-        clearInterval(intervalId);
-        activityEvents.forEach(event => {
-          window.removeEventListener(event, throttledResetTimer);
-        });
-      };
-    }, [navigate, user]);
-  
-    return { user, loading };
-  }
-
+// 受保護的路由組件
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   
@@ -137,6 +30,7 @@ function ProtectedRoute({ children }) {
     return <div>載入中...</div>;
   }
 
+  // 允許訪問首頁，但傳入用戶狀態
   if (window.location.pathname === '/') {
     return React.cloneElement(children, { user });
   }
@@ -163,10 +57,10 @@ function App() {
             <Route path="/shared-material-history/:id" element={<ProtectedRoute><SharedMaterialHistory /></ProtectedRoute>} />
             <Route path="/excel-analysis" element={<ProtectedRoute><ExcelAnalysisPage /></ProtectedRoute>} />
             <Route path="/saved-analysis" element={<ProtectedRoute><SavedAnalysisPage /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/dealer-pricing" element={<PricingAnalysisPage />} />
-            <Route path="/saved-pricing" element={<SavedPricingPage />} />
-            <Route path="/order-cost-rate" element={<OrderCostRatePage />} />
+            <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+            <Route path="/dealer-pricing" element={<ProtectedRoute><PricingAnalysisPage /></ProtectedRoute>} />
+            <Route path="/saved-pricing" element={<ProtectedRoute><SavedPricingPage /></ProtectedRoute>} />
+            <Route path="/order-cost-rate" element={<ProtectedRoute><OrderCostRatePage /></ProtectedRoute>} />
           </Routes>
         </div>
         <Footer />
