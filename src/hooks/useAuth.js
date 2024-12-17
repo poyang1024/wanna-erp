@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import firebase from '../utils/firebase';  // 修正了路徑

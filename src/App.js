@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer,toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import useAuth from './hooks/useAuth';
@@ -25,17 +25,26 @@ import OrderCostRatePage from './components/OrderCostRatePage';
 // 受保護的路由組件
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const isRestrictedUser = user?.email === 'sabrina.huang@kindfoodtw.com';
+  const allowedPaths = ['/saved-pricing', '/dealer-pricing', '/order-cost-rate', '/', '/profile'];
   
   if (loading) {
-    return <div>載入中...</div>;
+      return <div>載入中...</div>;
   }
 
-  // 允許訪問首頁，但傳入用戶狀態
-  if (window.location.pathname === '/') {
-    return React.cloneElement(children, { user });
+  if (!user) {
+      return <Navigate to="/signin" />;
   }
 
-  return user ? children : <Navigate to="/signin" />;
+  if (isRestrictedUser && !allowedPaths.includes(window.location.pathname)) {
+      toast.error('您沒有此頁面的權限', {
+        position: "top-center",
+        autoClose: 3000
+      });
+      return <Navigate to="/" />;
+  }
+
+  return children;
 }
 
 function App() {
@@ -47,7 +56,7 @@ function App() {
         <div style={{ flex: 1 }}>
           <Routes>
             <Route path="/signin" element={<Signin />} />
-            <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/bom-table" element={<ProtectedRoute><BomTables /></ProtectedRoute>} />
             <Route path="/shared-material" element={<ProtectedRoute><SharedMaterial /></ProtectedRoute>} />
             <Route path="/new-bomtable" element={<ProtectedRoute><NewBomTables /></ProtectedRoute>} />

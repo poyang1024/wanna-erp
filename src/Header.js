@@ -62,7 +62,7 @@ function Header() {
         dropdownItem: {
             color: '#000',
         },
-        pricingButton: {  // 改名為 pricingButton
+        pricingButton: {
             backgroundColor: '#81C0C0',
             color: '#000',
         },
@@ -83,6 +83,8 @@ function Header() {
         Object.assign(e.target.style, originalStyle);
     };
 
+    const isRestrictedUser = user?.email === 'sabrina.huang@kindfoodtw.com';
+
     if (isLoading) {
         return <Dimmer active><Loader>加載中...</Loader></Dimmer>;
     }
@@ -97,44 +99,48 @@ function Header() {
                 <Menu.Menu position='right'>
                     {user ? (
                         <>
-                            <Dropdown item text='操作' style={styles.dropdownButton}>
-                                <Dropdown.Menu>
-                                    <Dropdown.Item as={Link} to="/new-bomtable" style={styles.dropdownItem}>
-                                        建立 BOM 表
-                                    </Dropdown.Item>
-                                    <Dropdown.Item as={Link} to="/new-shared-material" style={styles.dropdownItem}>
-                                        建立共用料
-                                    </Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
+                            {!isRestrictedUser && (
+                                <>
+                                    <Dropdown item text='操作' style={styles.dropdownButton}>
+                                        <Dropdown.Menu>
+                                            <Dropdown.Item as={Link} to="/new-bomtable" style={styles.dropdownItem}>
+                                                建立 BOM 表
+                                            </Dropdown.Item>
+                                            <Dropdown.Item as={Link} to="/new-shared-material" style={styles.dropdownItem}>
+                                                建立共用料
+                                            </Dropdown.Item>
+                                        </Dropdown.Menu>
+                                    </Dropdown>
 
-                            <Dropdown item text='查看' style={styles.dropdownButton}>
-                                <Dropdown.Menu>
-                                    <Dropdown.Item as={Link} to="/bom-table" style={styles.dropdownItem}>
-                                        查看 BOM 表
-                                    </Dropdown.Item>
-                                    <Dropdown.Item as={Link} to="/shared-material" style={styles.dropdownItem}>
-                                        查看共用料
-                                    </Dropdown.Item>
-                                </Dropdown.Menu>
-                            </Dropdown>
+                                    <Dropdown item text='查看' style={styles.dropdownButton}>
+                                        <Dropdown.Menu>
+                                            <Dropdown.Item as={Link} to="/bom-table" style={styles.dropdownItem}>
+                                                查看 BOM 表
+                                            </Dropdown.Item>
+                                            <Dropdown.Item as={Link} to="/shared-material" style={styles.dropdownItem}>
+                                                查看共用料
+                                            </Dropdown.Item>
+                                        </Dropdown.Menu>
+                                    </Dropdown>
+                                </>
+                            )}
 
                             <Dropdown item text='報價' style={styles.pricingButton}>
                                 <Dropdown.Menu>
-                                    <Dropdown.Item 
-                                        as={Link} 
-                                        to="/excel-analysis" 
-                                        style={styles.dropdownItem}
-                                    >
-                                        官網報價分析
-                                    </Dropdown.Item>
-                                    <Dropdown.Item 
-                                        as={Link} 
-                                        to="/saved-pricing" 
-                                        style={styles.dropdownItem}
-                                    >
-                                        經銷報價計算
-                                    </Dropdown.Item>
+                                    {isRestrictedUser ? (
+                                        <Dropdown.Item as={Link} to="/saved-pricing" style={styles.dropdownItem}>
+                                            經銷報價計算
+                                        </Dropdown.Item>
+                                    ) : (
+                                        <>
+                                            <Dropdown.Item as={Link} to="/excel-analysis" style={styles.dropdownItem}>
+                                                官網報價分析
+                                            </Dropdown.Item>
+                                            <Dropdown.Item as={Link} to="/saved-pricing" style={styles.dropdownItem}>
+                                                經銷報價計算
+                                            </Dropdown.Item>
+                                        </>
+                                    )}
                                 </Dropdown.Menu>
                             </Dropdown>
 
