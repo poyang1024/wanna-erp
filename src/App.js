@@ -1,9 +1,10 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ToastContainer,toast } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import useAuth from './hooks/useAuth';
+import { isRestrictedUser, isAllowedPath } from './config/userRoles';
 import Header from "./Header";
 import Footer from "./components/Footer";
 import Signin from "./pages/Signin";
@@ -22,26 +23,24 @@ import PricingAnalysisPage from './pages/PricingAnalysis'
 import SavedPricingPage from './components/SaviedPrcingPage'
 import OrderCostRatePage from './components/OrderCostRatePage';
 
-// 受保護的路由組件
+// Protected Route Component
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  const isRestrictedUser = user?.email === 'sabrina.huang@kindfoodtw.com';
-  const allowedPaths = ['/saved-pricing', '/dealer-pricing', '/order-cost-rate', '/', '/profile'];
   
   if (loading) {
-      return <div>載入中...</div>;
+    return <div>載入中...</div>;
   }
 
   if (!user) {
-      return <Navigate to="/signin" />;
+    return <Navigate to="/signin" />;
   }
 
-  if (isRestrictedUser && !allowedPaths.includes(window.location.pathname)) {
-      toast.error('您沒有此頁面的權限', {
-        position: "top-center",
-        autoClose: 3000
-      });
-      return <Navigate to="/" />;
+  if (isRestrictedUser(user.email) && !isAllowedPath(window.location.pathname)) {
+    toast.error('您沒有此頁面的權限', {
+      position: "top-center",
+      autoClose: 3000
+    });
+    return <Navigate to="/" />;
   }
 
   return children;

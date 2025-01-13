@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Menu, Search, Dimmer, Loader, Dropdown } from 'semantic-ui-react';
 import { Link, useNavigate } from "react-router-dom";
 import firebase from './utils/firebase';
+import { isRestrictedUser } from './config/userRoles';
 
 function Header() {
     const [user, setUser] = useState(null);
@@ -83,8 +84,6 @@ function Header() {
         Object.assign(e.target.style, originalStyle);
     };
 
-    const isRestrictedUser = user?.email === 'sabrina.huang@kindfoodtw.com';
-
     if (isLoading) {
         return <Dimmer active><Loader>加載中...</Loader></Dimmer>;
     }
@@ -99,7 +98,7 @@ function Header() {
                 <Menu.Menu position='right'>
                     {user ? (
                         <>
-                            {!isRestrictedUser && (
+                            {!isRestrictedUser(user.email) && (
                                 <>
                                     <Dropdown item text='操作' style={styles.dropdownButton}>
                                         <Dropdown.Menu>
@@ -127,7 +126,7 @@ function Header() {
 
                             <Dropdown item text='報價' style={styles.pricingButton}>
                                 <Dropdown.Menu>
-                                    {isRestrictedUser ? (
+                                    {isRestrictedUser(user.email) ? (
                                         <Dropdown.Item as={Link} to="/saved-pricing" style={styles.dropdownItem}>
                                             經銷報價計算
                                         </Dropdown.Item>
