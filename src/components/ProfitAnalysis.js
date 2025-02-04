@@ -147,7 +147,7 @@ const BOMTotalCostAnalysis = () => {
   const calculateProfitMargin = useCallback((websitePrice, totalCost) => {
     const price = parseFloat(websitePrice);
     if (isNaN(price) || price <= 0) return '-';
-    const margin = ((price - (price * 0.05) - totalCost) / price) * 100;
+    const margin = (((price / 1.05) - totalCost) / (price / 1.05)) * 100;
     return isNaN(margin) ? '-' : margin.toFixed(2);
   }, []);
 
@@ -198,7 +198,7 @@ const BOMTotalCostAnalysis = () => {
       ),
     },
     {
-      name: '商品利潤率(官網)',
+      name: '毛利率（未稅）',
       cell: row => {
         const profitMargin = calculateProfitMargin(row.websitePrice, row.totalCost);
         return profitMargin === '-' ? '-' : `${profitMargin}%`;
@@ -206,7 +206,7 @@ const BOMTotalCostAnalysis = () => {
       sortable: true,
     },
     {
-      name: '淨毛利率(官網)',
+      name: '毛利率 - 訂單成本率',
       cell: row => {
         const netProfitMargin = calculateNetProfitMargin(row.websitePrice, row.totalCost);
         return netProfitMargin === '-' ? '-' : `${netProfitMargin}%`;
