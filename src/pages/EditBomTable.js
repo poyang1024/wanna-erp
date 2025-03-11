@@ -13,6 +13,7 @@ function EditBomTable() {
   const [tableName, setTableName] = useState('');
   const [productCode, setProductCode] = useState('');
   const [barcode, setBarcode] = useState('');
+  const [volume, setVolume] = useState("");
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [file, setFile] = useState(null);
@@ -33,6 +34,7 @@ function EditBomTable() {
           setTableName(data.tableName);
           setProductCode(data.productCode || '');
           setBarcode(data.barcode || '');
+          setVolume(data.volume || '');
           setImageUrl(data.imageUrl || '');
           setUpdateTime(data.updatedAt ? data.updatedAt.toDate() : null);
 
@@ -162,6 +164,7 @@ function EditBomTable() {
         tableName,
         productCode,
         barcode,
+        volume,
         items: processedItems,
         category: selectedCategory ? firebase.firestore().doc(`categorys/${selectedCategory}`) : null,
         imageUrl: updatedImageUrl,
@@ -232,6 +235,14 @@ function EditBomTable() {
           label="條碼編號"
           value={barcode}
           onChange={(e) => setBarcode(e.target.value)}
+        />
+
+        <Form.Input
+          type="number" 
+          label="體積單位"
+          placeholder="輸入體積單位"
+          value={volume}
+          onChange={(e) => setVolume(e.target.value)}
         />
 
         <Form.Field>

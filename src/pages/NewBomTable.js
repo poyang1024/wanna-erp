@@ -17,6 +17,7 @@ function NewBOMTable() {
     const [tableName, setTableName] = useState("");
     const [productCode, setProductCode] = useState("");
     const [barcode, setBarcode] = useState("");
+    const [volume, setVolume] = useState("");
     const [items, setItems] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [file, setFile] = useState(null);
@@ -76,6 +77,7 @@ function NewBOMTable() {
                         setTableName(parsed.tableName);
                         setProductCode(parsed.productCode);
                         setBarcode(parsed.barcode);
+                        setVolume(parsed.volume);
                         setSelectedCategory(parsed.category.id);
 
                         const initializedItems = parsed.items.map(item => {
@@ -239,6 +241,7 @@ function NewBOMTable() {
                 tableName,
                 productCode,
                 barcode,
+                volume,
                 items: processedItems,
                 category: selectedCategory ? firebase.firestore().doc(`categorys/${selectedCategory}`) : null,
                 createdAt: firebase.firestore.Timestamp.now(),
@@ -301,6 +304,14 @@ function NewBOMTable() {
                         onChange={(e) => setBarcode(e.target.value)} 
                     />
 
+                    <Form.Input
+                        type="number" 
+                        label="體積單位"
+                        placeholder="輸入體積單位"
+                        value={volume}
+                        onChange={(e) => setVolume(e.target.value)}
+                    />
+                        
                     <Form.Field>
                         <label>選擇類別</label>
                         <Dropdown

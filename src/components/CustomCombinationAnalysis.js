@@ -16,7 +16,7 @@ const CustomCombinationAnalysis = () => {
   const [combinations, setCombinations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add');
-  const [currentCombination, setCurrentCombination] = useState({ name: '', products: [] });
+  const [currentCombination, setCurrentCombination] = useState({ name: '', productCode: '', products: [] });
   const [categories, setCategories] = useState([]);
   const [productsByCategory, setProductsByCategory] = useState({});
   const [error, setError] = useState('');
@@ -73,6 +73,7 @@ const CustomCombinationAnalysis = () => {
         return {
           id: doc.id,
           ...data,
+          productCode: data.productCode || '',
           products: products,
           totalCost: totalCost,
           updatedAt: data.updatedAt ? data.updatedAt.toDate() : null
@@ -170,6 +171,7 @@ const CustomCombinationAnalysis = () => {
 
       const updateData = {
         name: currentCombination.name,
+        productCode: currentCombination.productCode || '', // 保存產品編號
         products: processedProducts,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
@@ -182,7 +184,7 @@ const CustomCombinationAnalysis = () => {
       }
 
       setIsModalOpen(false);
-      setCurrentCombination({ name: '', products: [] });
+      setCurrentCombination({ name: '', productCode: '', products: [] });
       setError('');
       fetchCombinations();
     } catch (error) {
@@ -196,6 +198,7 @@ const CustomCombinationAnalysis = () => {
     setCurrentCombination({
       id: combination.id,
       name: combination.name,
+      productCode: combination.productCode || '',
       products: combination.products.map(p => ({
         categoryId: p.categoryId,
         productId: p.productId,
@@ -230,7 +233,7 @@ const CustomCombinationAnalysis = () => {
       {error && <Message negative>{error}</Message>}
       <Button primary onClick={() => {
         setModalMode('add');
-        setCurrentCombination({ name: '', products: [] });
+        setCurrentCombination({ name: '', productCode: '', products: [] });
         setIsModalOpen(true);
       }}>
         新增自定義組合
@@ -239,6 +242,7 @@ const CustomCombinationAnalysis = () => {
         <Table.Header>
           <Table.Row>
             <Table.HeaderCell>組合名稱</Table.HeaderCell>
+            <Table.HeaderCell>產品編號</Table.HeaderCell>
             <Table.HeaderCell>產品</Table.HeaderCell>
             <Table.HeaderCell>總成本</Table.HeaderCell>
             <Table.HeaderCell>最後更新時間</Table.HeaderCell>
@@ -249,6 +253,7 @@ const CustomCombinationAnalysis = () => {
           {combinations.map(combination => (
             <Table.Row key={combination.id}>
               <Table.Cell>{combination.name}</Table.Cell>
+              <Table.Cell>{combination.productCode || '尚無編號'}</Table.Cell>
               <Table.Cell>
                 {combination.products.map((product, index) => (
                   <div key={index}>
@@ -290,6 +295,12 @@ const CustomCombinationAnalysis = () => {
               label="組合名稱"
               value={currentCombination.name}
               onChange={(e, { value }) => setCurrentCombination(prev => ({ ...prev, name: value }))}
+            />
+            <Form.Input
+              label="組合產品編號 (SKU)"
+              value={currentCombination.productCode}
+              onChange={(e, { value }) => setCurrentCombination(prev => ({ ...prev, productCode: value }))}
+              placeholder="請輸入產品編號"
             />
             <Table>
               <Table.Header>

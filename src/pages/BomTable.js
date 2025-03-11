@@ -277,6 +277,7 @@ function BomTables() {
       tableName: `${bomTable.tableName} (${formattedDate} 複製)`,
       productCode: bomTable.productCode,
       barcode: bomTable.barcode,
+      volume: bomTable.volume,
       category: {
         id: bomTable.category.id,
         name: bomTable.category.name
@@ -340,7 +341,8 @@ function BomTables() {
             <h2>{bomTable.tableName}</h2>
             <p style={{ fontSize: '1.3em', color: 'black' }}>
               &nbsp;&nbsp;&nbsp;料號: {bomTable.productCode || '未指定'}<br />
-              &nbsp;&nbsp;&nbsp;產品條碼: {bomTable.barcode || '未指定'}
+              &nbsp;&nbsp;&nbsp;產品條碼: {bomTable.barcode || '未指定'}<br />
+              &nbsp;&nbsp;&nbsp;體積單位: {bomTable.volume || '尚無數據'}
             </p>
           </div>
           <div>
