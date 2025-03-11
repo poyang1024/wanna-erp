@@ -15,6 +15,7 @@ export const restrictedUsers = [
 // Pages that restricted users can access
 export const allowedPaths = [
     '/saved-pricing',
+    '/shipping',
     '/dealer-pricing', 
     '/order-cost-rate',
     '/',

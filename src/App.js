@@ -22,6 +22,7 @@ import ProfilePage from './pages/ProfilePage'
 import PricingAnalysisPage from './pages/PricingAnalysis'
 import SavedPricingPage from './components/SaviedPrcingPage'
 import OrderCostRatePage from './components/OrderCostRatePage';
+import ShippingPage from './pages/ShippingPage';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -69,6 +70,7 @@ function App() {
             <Route path="/dealer-pricing" element={<ProtectedRoute><PricingAnalysisPage /></ProtectedRoute>} />
             <Route path="/saved-pricing" element={<ProtectedRoute><SavedPricingPage /></ProtectedRoute>} />
             <Route path="/order-cost-rate" element={<ProtectedRoute><OrderCostRatePage /></ProtectedRoute>} />
+            <Route path="/shipping" element={<ProtectedRoute><ShippingPage /></ProtectedRoute>} />
           </Routes>
         </div>
         <Footer />

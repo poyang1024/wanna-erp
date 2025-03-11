@@ -67,6 +67,10 @@ function Header() {
             backgroundColor: '#81C0C0',
             color: '#000',
         },
+        shippingButton: {
+            backgroundColor: '#C17767',
+            color: '#000',
+        },
         profileButton: {
             backgroundColor: '#FFAD86',
             color: '#000',
@@ -140,6 +144,14 @@ function Header() {
                                             </Dropdown.Item>
                                         </>
                                     )}
+                                </Dropdown.Menu>
+                            </Dropdown>
+
+                            <Dropdown item text='出貨' style={styles.shippingButton}>
+                                <Dropdown.Menu>
+                                    <Dropdown.Item as={Link} to="/shipping" style={styles.dropdownItem}>
+                                        訂單出貨管理
+                                    </Dropdown.Item>
                                 </Dropdown.Menu>
                             </Dropdown>
 
