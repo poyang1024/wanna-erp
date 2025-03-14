@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Container, Header, Button, Message, Table, Tab, Form, Icon, Loader, Dimmer, Segment, Card, Statistic, Grid, Accordion, Modal, Pagination } from "semantic-ui-react";
+import { Container, Header, Button, Message, Table, Tab, Form, Icon, Loader, Dimmer, Segment, Divider, Card, Statistic, Grid, Accordion, Modal, Pagination } from "semantic-ui-react";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import * as XLSX from 'xlsx';
 import firebase from "../utils/firebase";
-import { isRestrictedUser } from '../config/userRoles';
 
 function ShippingPage() {
   const [user, setUser] = useState(null);
@@ -62,12 +61,50 @@ function ShippingPage() {
       
       const bomTablesData = await Promise.all(snapshot.docs.map(async doc => {
         const data = doc.data();
-        // 針對每個 BOM 表格，收集料號和體積信息
+        
+        // 計算 BOM 表的總成本
+        let cost = 0;
+        if (data.items && data.items.length > 0) {
+          // 處理 items 並計算成本
+          const items = await Promise.all(data.items.map(async item => {
+            let unitCost = 0;
+            
+            if (item.isShared) {
+              // 處理共用料
+              if (item.unitCost instanceof firebase.firestore.DocumentReference) {
+                const unitCostDoc = await item.unitCost.get();
+                unitCost = unitCostDoc.exists ? parseFloat(unitCostDoc.data().unitCost) || 0 : 0;
+              } else {
+                unitCost = parseFloat(item.unitCost) || 0;
+              }
+            } else {
+              // 非共用料直接使用單位成本
+              unitCost = parseFloat(item.unitCost) || 0;
+            }
+            
+            const quantity = parseFloat(item.quantity) || 0;
+            const isTaxed = item.isTaxed || false;
+            
+            // 計算此項目的成本（含稅）
+            const itemCost = quantity * unitCost;
+            const tax = isTaxed ? itemCost * 0.05 : 0;
+            
+            cost += itemCost + tax;
+            
+            return {
+              ...item,
+              calculatedCost: itemCost + tax
+            };
+          }));
+        }
+        
+        // 針對每個 BOM 表格，收集料號、體積和成本信息
         return {
           id: doc.id,
           productCode: data.productCode || '',
           volume: data.volume || 0,
           tableName: data.tableName || '',
+          cost: cost, // 添加成本信息
           source: 'bom' // 標記來源為 BOM 表
         };
       }));
@@ -85,16 +122,17 @@ function ShippingPage() {
     try {
       const snapshot = await firebase.firestore().collection("custom_combinations").get();
       
-      // 處理每個自訂義組合，計算其總體積
+      // 處理每個自訂義組合，計算其總體積和成本
       const customCombinationsData = await Promise.all(snapshot.docs.map(async doc => {
         const data = doc.data();
         let totalVolume = 0;
+        let totalCost = 0; // 添加總成本計算
         const combinationComponents = []; // 儲存組合中的所有 BOM 表資料
         
-        // 如果有產品，計算總體積
+        // 如果有產品，計算總體積和總成本
         if (data.products && data.products.length > 0) {
           for (const product of data.products) {
-            // 查找相應 BOM 表格獲取體積
+            // 查找相應 BOM 表格獲取體積和成本
             const bomRef = product.productId ? 
               await firebase.firestore().collection('bom_tables').doc(product.productId).get() : null;
             
@@ -102,7 +140,38 @@ function ShippingPage() {
               const bomData = bomRef.data();
               const productVolume = bomData.volume || 0;
               const bomQuantity = product.quantity || 1;
-              totalVolume += productVolume * bomQuantity;
+              
+              // 計算BOM表的總成本
+                let productCost = 0;
+                if (bomData.items && bomData.items.length > 0) {
+                // 遍歷所有項目計算成本
+                for (const item of bomData.items) {
+                    let itemUnitCost = 0;
+                    if (item.isShared) {
+                    // 處理共用料
+                    if (item.unitCost instanceof firebase.firestore.DocumentReference) {
+                        const unitCostDoc = await item.unitCost.get();
+                        itemUnitCost = unitCostDoc.exists ? parseFloat(unitCostDoc.data().unitCost) || 0 : 0;
+                    } else {
+                        itemUnitCost = parseFloat(item.unitCost) || 0;
+                    }
+                    } else {
+                    itemUnitCost = parseFloat(item.unitCost) || 0;
+                    }
+                    
+                    const itemQuantity = parseFloat(item.quantity) || 0;
+                    const isTaxed = item.isTaxed || false;
+                    
+                    // 計算此項目的成本（含稅）
+                    const itemCost = itemQuantity * itemUnitCost;
+                    const tax = isTaxed ? itemCost * 0.05 : 0;
+                    
+                    productCost += itemCost + tax;
+                }
+                }
+
+                totalVolume += productVolume * bomQuantity;
+                totalCost += productCost * bomQuantity; // 計算總成本
               
               // 將 BOM 表資料添加到組合元件列表中
               combinationComponents.push({
@@ -111,7 +180,9 @@ function ShippingPage() {
                 productCode: bomData.productCode || '無料號',
                 quantity: bomQuantity,
                 unitVolume: productVolume,
-                totalVolume: productVolume * bomQuantity
+                totalVolume: productVolume * bomQuantity,
+                unitCost: productCost, // 添加單位成本
+                totalCost: productCost * bomQuantity // 添加總成本
               });
             }
           }
@@ -122,6 +193,7 @@ function ShippingPage() {
           productCode: data.productCode || '',
           name: data.name || '未命名組合',
           volume: totalVolume,
+          cost: totalCost, // 添加總成本
           source: 'custom', // 標記來源為自訂義組合
           components: combinationComponents // 儲存組合中的 BOM 表資料
         };
@@ -212,10 +284,11 @@ function ShippingPage() {
       const matchedBom = bomTables.find(bom => bom.productCode === sku);
       
       // 如果 BOM 表中找不到，嘗試在自訂義組合中查找
-            
       let matchedProduct = matchedBom;
       let matchSource = 'bom';
       let customComponents = null;
+      let unitCost = 0; // 新增：單位成本
+      let totalCost = 0; // 新增：總成本
       
       if (!matchedBom) {
         const matchedCustom = customCombinations.find(combo => combo.productCode === sku);
@@ -223,11 +296,30 @@ function ShippingPage() {
           matchedProduct = matchedCustom;
           matchSource = 'custom';
           customComponents = matchedCustom.components || [];
+          
+          // 計算自訂義組合的成本
+          if (customComponents.length > 0) {
+            // 獲取每個組件的成本並計算總成本
+            let componentsTotalCost = 0;
+            customComponents.forEach(component => {
+              const componentBom = bomTables.find(bom => bom.id === component.id);
+              if (componentBom && componentBom.cost) {
+                componentsTotalCost += componentBom.cost * component.quantity;
+              }
+            });
+            unitCost = componentsTotalCost;
+          }
+          
           customMatchCount++;
         }
       } else {
+        // 從 BOM 表獲取成本
+        unitCost = matchedBom.cost || 0;
         bomMatchCount++;
       }
+      
+      // 計算總成本
+      totalCost = unitCost * quantity;
       
       let unitVolume = 0;
       let totalVolume = 0;
@@ -251,6 +343,8 @@ function ShippingPage() {
         starQuantity,
         unitVolume,
         totalVolume,
+        unitCost, // 新增：單位成本
+        totalCost, // 新增：總成本
         matchStatus,
         matchSource,
         bomName: matchedProduct ? matchedProduct.tableName || matchedProduct.name : '未找到匹配的商品',
@@ -286,50 +380,55 @@ function ShippingPage() {
     
     // 將訂單按照訂單編號分組
     const grouped = processedOrders.reduce((acc, order) => {
-      const { orderNumber } = order;
-      if (!acc[orderNumber]) {
-        acc[orderNumber] = {
-          orderNumber,
-          customerName: order.customerName,
-          address: order.address,
-          phone: order.phone,
-          items: [],
-          totalVolume: 0,
-          boxType: null
-        };
-      }
+        const { orderNumber } = order;
+        if (!acc[orderNumber]) {
+          acc[orderNumber] = {
+            orderNumber,
+            customerName: order.customerName,
+            address: order.address,
+            phone: order.phone,
+            items: [],
+            totalVolume: 0,
+            totalCost: 0, // 新增：訂單總成本
+            boxType: null
+          };
+        }
+        
+        acc[orderNumber].items.push(order);
+        acc[orderNumber].totalVolume += order.totalVolume;
+        acc[orderNumber].totalCost += order.totalCost; // 新增：累加訂單項的成本
+        
+        // 根據總體積決定紙箱類型
+        acc[orderNumber].boxType = acc[orderNumber].totalVolume <= 14 ? 'S60' : 'S90';
+        
+        return acc;
+      }, {});
       
-      acc[orderNumber].items.push(order);
-      acc[orderNumber].totalVolume += order.totalVolume;
+      // 轉換為陣列並排序
+      const groupedArray = Object.values(grouped).sort((a, b) => 
+        a.orderNumber.localeCompare(b.orderNumber)
+      );
       
-      // 根據總體積決定紙箱類型
-      acc[orderNumber].boxType = acc[orderNumber].totalVolume <= 14 ? 'S60' : 'S90';
+      // 正確計算紙箱數量和總成本
+      const s60Count = groupedArray.filter(order => order.boxType === 'S60').length;
+      const s90Count = groupedArray.filter(order => order.boxType === 'S90').length;
+      const totalOrdersCost = groupedArray.reduce((sum, order) => sum + order.totalCost, 0); // 新增：計算所有訂單的總成本
       
-      return acc;
-    }, {});
-    
-    // 轉換為陣列並排序
-    const groupedArray = Object.values(grouped).sort((a, b) => 
-      a.orderNumber.localeCompare(b.orderNumber)
-    );
-    
-    // 正確計算紙箱數量 - 按訂單計算而非按商品計算
-    const s60Count = groupedArray.filter(order => order.boxType === 'S60').length;
-    const s90Count = groupedArray.filter(order => order.boxType === 'S90').length;
-    
-    setGroupedOrders(groupedArray);
-    setSummary({ 
-      s60Count, 
-      s90Count, 
-      unmatchedSkus,
-      bomMatchCount,
-      customMatchCount
-    });
-    setActiveAccordions({}); // 重置下拉面板狀態
-    setProcessing(false);
-    setActiveTab(1); // 切換到結果頁籤
-    setCurrentPage(1); // 設置分頁回到第一頁
-  };
+      setGroupedOrders(groupedArray);
+      setSummary({ 
+        s60Count, 
+        s90Count, 
+        unmatchedSkus,
+        bomMatchCount,
+        customMatchCount,
+        totalOrdersCost // 新增：總成本
+      });
+      
+      setActiveAccordions({}); // 重置下拉面板狀態
+      setProcessing(false);
+      setActiveTab(1); // 切換到結果頁籤
+      setCurrentPage(1); // 設置分頁回到第一頁
+    };
 
   // 切換訂單詳情的開合狀態
   const toggleAccordion = (orderNumber) => {
@@ -375,16 +474,20 @@ function ShippingPage() {
   const calculateTotalSkuCounts = () => {
     const skuCounter = {};
     const bomComponentsCounter = {};
+    const skuCosts = {}; // 新增：記錄每個 SKU 的成本
+    const componentCosts = {}; // 新增：記錄每個組件的成本
     
-    // 第一輪：計算普通 SKU 和自定義組合的數量
+    // 第一輪：計算普通 SKU 和自定義組合的數量和成本
     calculatedOrders.forEach(order => {
-      const { sku, quantity, matchSource, customComponents } = order;
+      const { sku, quantity, matchSource, customComponents, unitCost } = order;
       
       // 更新 SKU 計數
       if (sku in skuCounter) {
         skuCounter[sku] += quantity;
+        skuCosts[sku] = unitCost; // 更新成本 (最後一個訂單的單位成本)
       } else {
         skuCounter[sku] = quantity;
+        skuCosts[sku] = unitCost; // 設置成本
       }
       
       // 如果是自定義組合，還需要計算其中的 BOM 表數量
@@ -397,6 +500,12 @@ function ShippingPage() {
             bomComponentsCounter[componentSku] += componentQuantity;
           } else {
             bomComponentsCounter[componentSku] = componentQuantity;
+          }
+          
+          // 記錄組件成本
+          const matchedBom = bomTables.find(bom => bom.productCode === componentSku);
+          if (matchedBom) {
+            componentCosts[componentSku] = matchedBom.cost || 0;
           }
         });
       }
@@ -411,12 +520,21 @@ function ShippingPage() {
       
       // 查找此 SKU 是否同時作為組件出現在組合中
       const componentCount = bomComponentsCounter[sku] || 0;
+      const unitCost = skuCosts[sku] || 0;
+      const componentUnitCost = componentCosts[sku] || 0;
+      
+      // 計算總成本
+      const directCost = count * unitCost;
+      const componentTotalCost = componentCount * componentUnitCost;
+      const totalCost = directCost + componentTotalCost;
       
       return {
         sku,
         count,
         componentCount,
         totalCount: count + componentCount,
+        unitCost, // 新增：單位成本
+        totalCost, // 新增：總成本
         name: matchedProduct ? matchedProduct.tableName || matchedProduct.name : '未找到匹配的商品',
         matchStatus: matchedProduct ? '已匹配' : '未匹配',
         matchSource,
@@ -427,27 +545,30 @@ function ShippingPage() {
     
     // 檢查組件中是否有未作為單獨 SKU 出現的項目
     Object.entries(bomComponentsCounter).forEach(([sku, count]) => {
-      if (!skuCounter[sku]) {
-        const matchedBom = bomTables.find(bom => bom.productCode === sku);
-        
-        if (matchedBom) {
-          skuStats.push({
-            sku,
-            count: 0,
-            componentCount: count,
-            totalCount: count,
-            name: matchedBom.tableName || '未命名產品',
-            matchStatus: '已匹配',
-            matchSource: 'bom',
-            components: []
-          });
+        if (!skuCounter[sku]) {
+          const matchedBom = bomTables.find(bom => bom.productCode === sku);
+          const unitCost = componentCosts[sku] || 0;
+          
+          if (matchedBom) {
+            skuStats.push({
+              sku,
+              count: 0,
+              componentCount: count,
+              totalCount: count,
+              unitCost, // 新增：單位成本
+              totalCost: count * unitCost, // 新增：總成本
+              name: matchedBom.tableName || '未命名產品',
+              matchStatus: '已匹配',
+              matchSource: 'bom',
+              components: []
+            });
+          }
         }
-      }
-    });
-    
-    // 按總數量排序
-    return skuStats.sort((a, b) => b.totalCount - a.totalCount);
-  };
+      });
+      
+      // 按總數量排序
+      return skuStats.sort((a, b) => b.totalCount - a.totalCount);
+    };
 
   // 處理頁碼變更
   const handlePageChange = (e, { activePage }) => {
@@ -544,6 +665,13 @@ function ShippingPage() {
                             <Statistic.Label>S90 紙箱</Statistic.Label>
                           </Statistic>
                         </Statistic.Group>
+                        <Divider />
+                            <Statistic size="small">
+                            <Statistic.Value>
+                                ${summary.totalOrdersCost ? summary.totalOrdersCost.toFixed(2) : '0.00'}
+                            </Statistic.Value>
+                            <Statistic.Label>訂單總成本</Statistic.Label>
+                            </Statistic>
                       </Segment>
                     </Grid.Column>
                     <Grid.Column>
@@ -656,14 +784,15 @@ function ShippingPage() {
               
               <Table celled structured style={{ marginTop: '1em' }}>
                 <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell rowSpan="2">訂單編號</Table.HeaderCell>
-                    <Table.HeaderCell rowSpan="2">收件人資訊</Table.HeaderCell>
-                    <Table.HeaderCell rowSpan="2">總體積</Table.HeaderCell>
-                    <Table.HeaderCell rowSpan="2">紙箱類型</Table.HeaderCell>
-                    <Table.HeaderCell rowSpan="2">撿貨狀態</Table.HeaderCell>
-                    <Table.HeaderCell rowSpan="2">操作</Table.HeaderCell>
-                  </Table.Row>
+                    <Table.Row>
+                        <Table.HeaderCell rowSpan="2">訂單編號</Table.HeaderCell>
+                        <Table.HeaderCell rowSpan="2">收件人資訊</Table.HeaderCell>
+                        <Table.HeaderCell rowSpan="2">總體積</Table.HeaderCell>
+                        <Table.HeaderCell rowSpan="2">總成本</Table.HeaderCell> {/* 新增列 */}
+                        <Table.HeaderCell rowSpan="2">紙箱類型</Table.HeaderCell>
+                        <Table.HeaderCell rowSpan="2">撿貨狀態</Table.HeaderCell>
+                        <Table.HeaderCell rowSpan="2">操作</Table.HeaderCell>
+                    </Table.Row>
                 </Table.Header>
                 <Table.Body>
                   {paginatedOrders.map((order) => (
@@ -679,6 +808,10 @@ function ShippingPage() {
                         </Table.Cell>
                         <Table.Cell textAlign="center">
                           <strong>{order.totalVolume.toFixed(2)}</strong>
+                        </Table.Cell>
+                        {/* 訂單行中添加成本顯示 */}
+                        <Table.Cell textAlign="center">
+                        <strong>${order.totalCost.toFixed(2)}</strong>
                         </Table.Cell>
                         <Table.Cell textAlign="center">
                           <span style={{ 
@@ -719,16 +852,18 @@ function ShippingPage() {
                         <Table.Row>
                           <Table.Cell colSpan="6" style={{ padding: 0 }}>
                             <Table celled>
-                              <Table.Header>
+                            <Table.Header>
                                 <Table.Row>
-                                  <Table.HeaderCell>SKU</Table.HeaderCell>
-                                  <Table.HeaderCell>商品名稱</Table.HeaderCell>
-                                  <Table.HeaderCell>數量詳情</Table.HeaderCell>
-                                  <Table.HeaderCell>單位體積</Table.HeaderCell>
-                                  <Table.HeaderCell>總體積</Table.HeaderCell>
-                                  <Table.HeaderCell>匹配狀態</Table.HeaderCell>
+                                    <Table.HeaderCell>SKU</Table.HeaderCell>
+                                    <Table.HeaderCell>商品名稱</Table.HeaderCell>
+                                    <Table.HeaderCell>數量詳情</Table.HeaderCell>
+                                    <Table.HeaderCell>單位體積</Table.HeaderCell>
+                                    <Table.HeaderCell>總體積</Table.HeaderCell>
+                                    <Table.HeaderCell>單位成本</Table.HeaderCell> {/* 新增列 */}
+                                    <Table.HeaderCell>總成本</Table.HeaderCell> {/* 新增列 */}
+                                    <Table.HeaderCell>匹配狀態</Table.HeaderCell>
                                 </Table.Row>
-                              </Table.Header>
+                            </Table.Header>
                               <Table.Body>
                                 {order.items.map((item, itemIndex) => (
                                   <React.Fragment key={itemIndex}>
@@ -747,11 +882,17 @@ function ShippingPage() {
                                         )}
                                       </Table.Cell>
                                       <Table.Cell textAlign="center">
-                                        {item.matchStatus === '已匹配' ? item.unitVolume : '未知'}
+                                        {item.matchStatus === '已匹配' ? `${item.unitVolume.toFixed(2)}` : '未知'}
                                       </Table.Cell>
                                       <Table.Cell textAlign="center">
-                                        {item.matchStatus === '已匹配' ? item.totalVolume : '未知'}
+                                        {item.matchStatus === '已匹配' ? `${item.totalVolume.toFixed(2)}` : '未知'}
                                       </Table.Cell>
+                                      <Table.Cell textAlign="center">
+                                        {item.matchStatus === '已匹配' ? `$${item.unitCost.toFixed(2)}` : '未知'}
+                                        </Table.Cell>
+                                        <Table.Cell textAlign="center">
+                                        {item.matchStatus === '已匹配' ? `$${item.totalCost.toFixed(2)}` : '未知'}
+                                    </Table.Cell>
                                       <Table.Cell>
                                         {item.matchStatus === '已匹配' ? (
                                           <span style={{ color: 'green' }}>
@@ -801,11 +942,13 @@ function ShippingPage() {
                                             <Table compact size="small">
                                               <Table.Header>
                                                 <Table.Row>
-                                                  <Table.HeaderCell>料號</Table.HeaderCell>
-                                                  <Table.HeaderCell>BOM表名稱</Table.HeaderCell>
-                                                  <Table.HeaderCell>數量</Table.HeaderCell>
-                                                  <Table.HeaderCell>單位體積</Table.HeaderCell>
-                                                  <Table.HeaderCell>總體積</Table.HeaderCell>
+                                                    <Table.HeaderCell>料號</Table.HeaderCell>
+                                                    <Table.HeaderCell>BOM表名稱</Table.HeaderCell>
+                                                    <Table.HeaderCell>數量</Table.HeaderCell>
+                                                    <Table.HeaderCell>單位體積</Table.HeaderCell>
+                                                    <Table.HeaderCell>總體積</Table.HeaderCell>
+                                                    <Table.HeaderCell>單位成本</Table.HeaderCell> {/* 新增列 */}
+                                                    <Table.HeaderCell>總成本</Table.HeaderCell> {/* 新增列 */}
                                                 </Table.Row>
                                               </Table.Header>
                                               <Table.Body>
@@ -815,7 +958,9 @@ function ShippingPage() {
                                                     <Table.Cell>{component.name}</Table.Cell>
                                                     <Table.Cell textAlign="center">{component.quantity}</Table.Cell>
                                                     <Table.Cell textAlign="center">{component.unitVolume}</Table.Cell>
-                                                    <Table.Cell textAlign="center">{component.totalVolume}</Table.Cell>
+                                                    <Table.Cell textAlign="center">${(component.totalVolume).toFixed(2)}</Table.Cell>
+                                                    <Table.Cell textAlign="center">${(component.unitCost || 0).toFixed(2)}</Table.Cell>
+                                                    <Table.Cell textAlign="center">${(component.totalCost || 0).toFixed(2)}</Table.Cell>
                                                   </Table.Row>
                                                 ))}
                                               </Table.Body>
@@ -898,16 +1043,18 @@ function ShippingPage() {
         </Modal.Header>
         <Modal.Content scrolling>
           <Table celled striped>
-            <Table.Header>
-              <Table.Row>
+          <Table.Header>
+            <Table.Row>
                 <Table.HeaderCell>SKU</Table.HeaderCell>
                 <Table.HeaderCell>商品名稱</Table.HeaderCell>
                 <Table.HeaderCell>總數量</Table.HeaderCell>
+                <Table.HeaderCell>單位成本</Table.HeaderCell> {/* 新增列 */}
+                <Table.HeaderCell>總成本</Table.HeaderCell> {/* 新增列 */}
                 <Table.HeaderCell>數據來源</Table.HeaderCell>
                 <Table.HeaderCell>匹配狀態</Table.HeaderCell>
                 <Table.HeaderCell>組合內容</Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
+            </Table.Row>
+          </Table.Header>
             <Table.Body>{skuStats.map((stat, index) => (
                 <React.Fragment key={index}>
                   <Table.Row warning={stat.matchStatus === '未匹配'}>
@@ -931,6 +1078,12 @@ function ShippingPage() {
                       ) : (
                         stat.count
                       )}
+                    </Table.Cell>
+                    <Table.Cell textAlign="center">
+                        ${(stat.unitCost || 0).toFixed(2)}
+                        </Table.Cell>
+                        <Table.Cell textAlign="center">
+                        ${(stat.totalCost || 0).toFixed(2)}
                     </Table.Cell>
                     <Table.Cell>
                       {stat.matchSource === 'bom' && (
@@ -1046,16 +1199,6 @@ function ShippingPage() {
         <Message warning>
           <Message.Header>需要登入</Message.Header>
           <p>您需要登入才能使用此功能</p>
-        </Message>
-      </Container>
-    );
-  }
-  if (user && isRestrictedUser(user.email)) {
-    return (
-      <Container>
-        <Message error>
-          <Message.Header>權限不足</Message.Header>
-          <p>您沒有權限訪問此頁面</p>
         </Message>
       </Container>
     );
