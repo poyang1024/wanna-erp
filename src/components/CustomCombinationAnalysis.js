@@ -62,14 +62,21 @@ const CustomCombinationAnalysis = () => {
           }));
 
           const cost = calculateProductCost(items) * product.quantity;
+          const websitePrice = parseFloat(bomData.websitePrice) || 0;
+          const totalWebsitePrice = websitePrice * product.quantity;
+          
           return {
             ...product,
             name: bomData.tableName,
             productCode: bomData.productCode || '無料號',
-            cost: cost
+            cost: cost,
+            websitePrice: websitePrice,
+            totalWebsitePrice: totalWebsitePrice
           };
         }));
         const totalCost = products.reduce((total, product) => total + product.cost, 0);
+        const totalWebsitePrice = products.reduce((total, product) => total + product.totalWebsitePrice, 0);
+        
         return {
           id: doc.id,
           ...data,
@@ -77,6 +84,7 @@ const CustomCombinationAnalysis = () => {
           officialPrice: data.officialPrice || '',
           products: products,
           totalCost: totalCost,
+          totalWebsitePrice: totalWebsitePrice,
           updatedAt: data.updatedAt ? data.updatedAt.toDate() : null
         };
       }));
@@ -247,6 +255,7 @@ const CustomCombinationAnalysis = () => {
             <Table.HeaderCell>組合名稱</Table.HeaderCell>
             <Table.HeaderCell>產品編號</Table.HeaderCell>
             <Table.HeaderCell>官網售價</Table.HeaderCell>
+            <Table.HeaderCell>官網原價</Table.HeaderCell>
             <Table.HeaderCell>產品</Table.HeaderCell>
             <Table.HeaderCell>總成本</Table.HeaderCell>
             <Table.HeaderCell>毛利</Table.HeaderCell>
@@ -270,9 +279,12 @@ const CustomCombinationAnalysis = () => {
                   {combination.officialPrice ? `$${parseFloat(combination.officialPrice).toFixed(1)}` : '尚未設定'}
                 </Table.Cell>
                 <Table.Cell>
+                  ${combination.totalWebsitePrice.toFixed(2)}
+                </Table.Cell>
+                <Table.Cell>
                   {combination.products.map((product, index) => (
                     <div key={index}>
-                      {product.productCode} - {product.name} (x{product.quantity}) - ${product.cost.toFixed(2)}
+                      {product.productCode} - {product.name} (x{product.quantity}) - <span style={{ color: '#FF7300' }}>成本:${product.cost.toFixed(2)}</span> / <span style={{ color: '#00A1B4' }}>官網價:${product.totalWebsitePrice.toFixed(2)}</span>
                     </div>
                   ))}
                 </Table.Cell>
