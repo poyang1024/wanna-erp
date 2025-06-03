@@ -16,7 +16,7 @@ const CustomCombinationAnalysis = () => {
   const [combinations, setCombinations] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('add');
-  const [currentCombination, setCurrentCombination] = useState({ name: '', productCode: '', products: [] });
+  const [currentCombination, setCurrentCombination] = useState({ name: '', productCode: '', products: [], officialPrice: '' });
   const [categories, setCategories] = useState([]);
   const [productsByCategory, setProductsByCategory] = useState({});
   const [error, setError] = useState('');
@@ -74,6 +74,7 @@ const CustomCombinationAnalysis = () => {
           id: doc.id,
           ...data,
           productCode: data.productCode || '',
+          officialPrice: data.officialPrice || '',
           products: products,
           totalCost: totalCost,
           updatedAt: data.updatedAt ? data.updatedAt.toDate() : null
@@ -172,6 +173,7 @@ const CustomCombinationAnalysis = () => {
       const updateData = {
         name: currentCombination.name,
         productCode: currentCombination.productCode || '', // 保存產品編號
+        officialPrice: currentCombination.officialPrice || '', // 保存官網售價
         products: processedProducts,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
@@ -184,7 +186,7 @@ const CustomCombinationAnalysis = () => {
       }
 
       setIsModalOpen(false);
-      setCurrentCombination({ name: '', productCode: '', products: [] });
+      setCurrentCombination({ name: '', productCode: '', products: [], officialPrice: '' });
       setError('');
       fetchCombinations();
     } catch (error) {
@@ -199,6 +201,7 @@ const CustomCombinationAnalysis = () => {
       id: combination.id,
       name: combination.name,
       productCode: combination.productCode || '',
+      officialPrice: combination.officialPrice || '',
       products: combination.products.map(p => ({
         categoryId: p.categoryId,
         productId: p.productId,
@@ -233,7 +236,7 @@ const CustomCombinationAnalysis = () => {
       {error && <Message negative>{error}</Message>}
       <Button primary onClick={() => {
         setModalMode('add');
-        setCurrentCombination({ name: '', productCode: '', products: [] });
+        setCurrentCombination({ name: '', productCode: '', products: [], officialPrice: '' });
         setIsModalOpen(true);
       }}>
         新增自定義組合
@@ -243,47 +246,66 @@ const CustomCombinationAnalysis = () => {
           <Table.Row>
             <Table.HeaderCell>組合名稱</Table.HeaderCell>
             <Table.HeaderCell>產品編號</Table.HeaderCell>
+            <Table.HeaderCell>官網售價</Table.HeaderCell>
             <Table.HeaderCell>產品</Table.HeaderCell>
             <Table.HeaderCell>總成本</Table.HeaderCell>
+            <Table.HeaderCell>毛利</Table.HeaderCell>
+            <Table.HeaderCell>毛利率</Table.HeaderCell>
             <Table.HeaderCell>最後更新時間</Table.HeaderCell>
             <Table.HeaderCell>操作</Table.HeaderCell>
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {combinations.map(combination => (
-            <Table.Row key={combination.id}>
-              <Table.Cell>{combination.name}</Table.Cell>
-              <Table.Cell>{combination.productCode || '尚無編號'}</Table.Cell>
-              <Table.Cell>
-                {combination.products.map((product, index) => (
-                  <div key={index}>
-                    {product.productCode} - {product.name} (x{product.quantity}) - ${product.cost.toFixed(2)}
-                  </div>
-                ))}
-              </Table.Cell>
-              <Table.Cell>${combination.totalCost.toFixed(2)}</Table.Cell>
-              <Table.Cell>
-                {combination.updatedAt 
-                  ? combination.updatedAt.toLocaleString('zh-TW', {
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit'
-                    })
-                  : '尚未更新'}
-              </Table.Cell>
-              <Table.Cell>
-                <Button icon onClick={() => handleEditCombination(combination)}>
-                  <Icon name="edit" />
-                </Button>
-                <Button icon negative onClick={() => handleDeleteCombination(combination)}>
-                  <Icon name="trash" />
-                </Button>
-              </Table.Cell>
-            </Table.Row>
-          ))}
+          {combinations.map(combination => {
+            const officialPrice = parseFloat(combination.officialPrice) || 0;
+            const totalCost = combination.totalCost;
+            const profit = officialPrice - totalCost;
+            const profitMargin = officialPrice > 0 ? (profit / officialPrice * 100) : 0;
+            
+            return (
+              <Table.Row key={combination.id}>
+                <Table.Cell>{combination.name}</Table.Cell>
+                <Table.Cell>{combination.productCode || '尚無編號'}</Table.Cell>
+                <Table.Cell>
+                  {combination.officialPrice ? `$${parseFloat(combination.officialPrice).toFixed(1)}` : '尚未設定'}
+                </Table.Cell>
+                <Table.Cell>
+                  {combination.products.map((product, index) => (
+                    <div key={index}>
+                      {product.productCode} - {product.name} (x{product.quantity}) - ${product.cost.toFixed(2)}
+                    </div>
+                  ))}
+                </Table.Cell>
+                <Table.Cell>${combination.totalCost.toFixed(2)}</Table.Cell>
+                <Table.Cell style={{ color: profit >= 0 ? 'green' : 'red' }}>
+                  ${profit.toFixed(2)}
+                </Table.Cell>
+                <Table.Cell style={{ color: profitMargin >= 0 ? 'green' : 'red' }}>
+                  {profitMargin != 0 ? `${profitMargin.toFixed(1)}%` : 'N/A'}
+                </Table.Cell>
+                <Table.Cell>
+                  {combination.updatedAt 
+                    ? combination.updatedAt.toLocaleString('zh-TW', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })
+                    : '尚未更新'}
+                </Table.Cell>
+                <Table.Cell>
+                  <Button icon onClick={() => handleEditCombination(combination)}>
+                    <Icon name="edit" />
+                  </Button>
+                  <Button icon negative onClick={() => handleDeleteCombination(combination)}>
+                    <Icon name="trash" />
+                  </Button>
+                </Table.Cell>
+              </Table.Row>
+            );
+          })}
         </Table.Body>
       </Table>
 
@@ -301,6 +323,15 @@ const CustomCombinationAnalysis = () => {
               value={currentCombination.productCode}
               onChange={(e, { value }) => setCurrentCombination(prev => ({ ...prev, productCode: value }))}
               placeholder="請輸入產品編號"
+            />
+            <Form.Input
+              label="官網售價"
+              type="number"
+              step="0.01"
+              min="0"
+              value={currentCombination.officialPrice}
+              onChange={(e, { value }) => setCurrentCombination(prev => ({ ...prev, officialPrice: value }))}
+              placeholder="請輸入官網售價"
             />
             <Table>
               <Table.Header>
