@@ -269,7 +269,7 @@ const CustomCombinationAnalysis = () => {
             const officialPrice = parseFloat(combination.officialPrice) || 0;
             const totalCost = combination.totalCost;
             const profit = (officialPrice/1.05) - totalCost;
-            const profitMargin = totalCost > 0 ? (profit / totalCost * 100) : 0;
+            const profitMargin = (officialPrice/1.05) > 0 ? (profit / (officialPrice/1.05) * 100) : 0;
             
             return (
               <Table.Row key={combination.id}>
