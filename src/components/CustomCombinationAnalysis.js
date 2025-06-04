@@ -258,8 +258,8 @@ const CustomCombinationAnalysis = () => {
             <Table.HeaderCell>官網原價</Table.HeaderCell>
             <Table.HeaderCell>產品</Table.HeaderCell>
             <Table.HeaderCell>總成本</Table.HeaderCell>
-            <Table.HeaderCell>毛利</Table.HeaderCell>
-            <Table.HeaderCell>毛利率</Table.HeaderCell>
+            <Table.HeaderCell>毛利（未稅）</Table.HeaderCell>
+            <Table.HeaderCell>毛利率（未稅）</Table.HeaderCell>
             <Table.HeaderCell>最後更新時間</Table.HeaderCell>
             <Table.HeaderCell>操作</Table.HeaderCell>
           </Table.Row>
@@ -268,8 +268,8 @@ const CustomCombinationAnalysis = () => {
           {combinations.map(combination => {
             const officialPrice = parseFloat(combination.officialPrice) || 0;
             const totalCost = combination.totalCost;
-            const profit = officialPrice - totalCost;
-            const profitMargin = officialPrice > 0 ? (profit / officialPrice * 100) : 0;
+            const profit = (officialPrice/1.05) - totalCost;
+            const profitMargin = totalCost > 0 ? (profit / totalCost * 100) : 0;
             
             return (
               <Table.Row key={combination.id}>
