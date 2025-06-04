@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import useAuth from './hooks/useAuth';
 import { isRestrictedUser, isAllowedPath } from './config/userRoles';
@@ -51,6 +52,7 @@ function App() {
   return (
     <BrowserRouter>
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <SpeedInsights />
         <ToastContainer />
         <Header />
         <div style={{ flex: 1 }}>
