@@ -1,7 +1,7 @@
-# 🍃 KIND FOOD ERP System
+# 🍃 WANNA ERP System
 
 <div align="center">
-  <img src="https://www.kindfoodtw.com/media/W1siZiIsIjEzOTg4L2F0dGFjaGVkX3Bob3Rvcy8xNjgzMDI3NzYwX-acquWRveWQjS0yLnBuZy5wbmciXV0.png?sha=b4d877a6657e1424" alt="Kind Food Logo" width="300">
+  <img src="https://www.owlting.com/p400/place_photo_129148" alt="WANNA Logo" width="300">
   <br><br>
   
   <h3>🚀 Enterprise Resource Planning System</h3>
