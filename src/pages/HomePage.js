@@ -15,7 +15,7 @@ function HomePage() {
       }}
     >
       <Image 
-        src="https://www.kindfoodtw.com/media/W1siZiIsIjEzOTg4L2F0dGFjaGVkX3Bob3Rvcy8xNjgzMDI3NzYwX-acquWRveWQjS0yLnBuZy5wbmciXV0.png?sha=b4d877a6657e1424"
+        src="https://www.owlting.com/p400/place_photo_129148"
         size='medium' 
         style={{ marginBottom: '2rem' }}
       />
@@ -27,7 +27,7 @@ function HomePage() {
           color: '#333'
         }}
       >
-        歡迎來到 KIND FOOD 康福先生 ERP 系統
+        歡迎來到丸那水餃 ERP 系統
       </Header>
     </Container>
   );
