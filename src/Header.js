@@ -95,7 +95,7 @@ function Header() {
     return (
         <>
             <Menu style={{ margin: 0, padding: 0 }}>
-                <Menu.Item as={Link} to="/">KIND FOOD ERP-System</Menu.Item>
+                <Menu.Item as={Link} to="/">WANNA ERP-System</Menu.Item>
                 <Menu.Item>
                     <Search />
                 </Menu.Item>
