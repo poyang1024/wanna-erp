@@ -1,27 +1,28 @@
+// Get restricted users from environment variable
+const getRestrictedUsers = () => {
+    const envUsers = process.env.REACT_APP_RESTRICTED_USERS;
+    if (!envUsers) {
+        console.warn('REACT_APP_RESTRICTED_USERS not set in environment variables');
+        return [];
+    }
+    return envUsers.split(',').map(email => email.trim()).filter(email => email);
+};
+
+// Get allowed paths from environment variable
+const getAllowedPaths = () => {
+    const envPaths = process.env.REACT_APP_ALLOWED_PATHS;
+    if (!envPaths) {
+        console.warn('REACT_APP_ALLOWED_PATHS not set in environment variables');
+        return ['/signin', '/profile']; // Default minimal paths
+    }
+    return envPaths.split(',').map(path => path.trim()).filter(path => path);
+};
+
 // Restricted users who only have access to specific pages
-export const restrictedUsers = [
-    'sabrina.huang@kindfoodtw.com',
-    'kindfood_support@kindfoodtw.com',
-    'design@kindfoodtw.com',
-    'business@kindfoodtw.com',
-    'marketing@kindfoodtw.com',
-    'logistics@kindfoodtw.com',
-    'service@kindfoodtw.com',
-    'yun.tung@kindfoodtw.com',
-    'james01030103@gmail.com',
-    'tom555000222@gmail.com',
-];
+export const restrictedUsers = getRestrictedUsers();
 
 // Pages that restricted users can access
-export const allowedPaths = [
-    '/saved-pricing',
-    '/shipping',
-    '/dealer-pricing', 
-    '/order-cost-rate',
-    '/',
-    '/profile',
-    '/signin'
-];
+export const allowedPaths = getAllowedPaths();
 
 // Helper function to check if a user is restricted
 export const isRestrictedUser = (email) => {
